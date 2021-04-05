@@ -305,7 +305,7 @@ function MGAI::fixMoney(money)
 
   /* Repay loan as much as possible */
   if (balance > money) {
-    AICompany.SetMinimumLoanAmount(loan - balance + money);
+    AICompany.SetMinimumLoanAmount(loan - balance);
   }  
 
   /* Take a loan when balance is to low */
