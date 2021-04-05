@@ -44,6 +44,7 @@ function MGAI::Load(version, data)
 
 function MGAI::Start()
 {
+  _MinchinWeb_Log_.PrintDebugLevel()
 
   while (true) {
     this.Sleep(50);
@@ -226,11 +227,9 @@ function MGAI::buildDock(tiles)
 function MGAI::buildDepot(oilRig) {
   AILog.Info("Let's build a depot near " + AIIndustry.GetName(oilRig));
 
-  local x = AIMap.GetTileX(AIIndustry.GetLocation(oilRig))
-  local y = AIMap.GetTileY(AIIndustry.GetLocation(oilRig))
-
-  local tiles = AITileList()
-  tiles.AddRectangle(AIMap.GetTileIndex(x - 5, y - 5), AIMap.GetTileIndex( x + 5, y + 5) )
+  local tiles = AITileList_IndustryProducing(oilRig, 3)
+  tiles.Valuate(AITile.IsWaterTile)
+  tiles.KeepValue(1)
   
   /* Check if there's already a depot */
   local depot = null
@@ -300,9 +299,15 @@ function MGAI::buildShip(source, destination, depot)
 function MGAI::fixMoney(money)
 {
   local balance = AICompany.GetBankBalance(AICompany.COMPANY_SELF)
-  
+  local loan = AICompany.GetLoanAmount()
+
+  /* Repay loan as much as possible */
+  if (balance > money) {
+    AICompany.SetMinimumLoanAmount(loan - balance + money)
+  }  
+
+  /* Take a loan when balance is to low */
   if (balance < money) {
-    local loan = AICompany.GetLoanAmount()
     AICompany.SetMinimumLoanAmount(loan + money)
   }
 }
