@@ -41,7 +41,7 @@ function MGAI::Load(version, data)
 function MGAI::Start()
 {
   while (true) {
-    this.Sleep(25);
+    this.Sleep(50);
   
     local oilRig = this.pickOilRig()
     
@@ -50,15 +50,21 @@ function MGAI::Start()
       continue;
     }
     
-    local refinery = this.searchRefinery(oilRig);
+    local refineries = this.searchRefineries(oilRig);
     
-    if( refinery == false ) {
+    if( refineries.Count() == 0) {
       AILog.Info("No suitable oil rig found")
       this.failedOilRigs.append(oilRig);
       continue
     }
     
-    local dockTile = this.buildDock(refinery)
+    local dockTile = false;
+    foreach(refinery, value in refineries) {
+        if (dockTile) {
+          continue;
+        }
+        dockTile = this.buildDock(refinery)
+    }
     
     if( dockTile == false ) {
       this.failedOilRigs.append(oilRig);
@@ -124,6 +130,9 @@ function MGAI::buildDock(refinery)
   local dockTile = false
   local dockStation = false
   
+  local costs = AIMarine.GetBuildCost(AIMarine.BT_DOCK);
+  this.fixMoney(costs)
+
   foreach( tile, value in tiles )
   {
     if( AIMarine.BuildDock(tile, AIStation.STATION_NEW))
@@ -166,6 +175,9 @@ function MGAI::buildDepot(oilRig) {
   tiles.Valuate(AITile.IsStationTile)
   tiles.KeepValue(0)
 
+  local costs = AIMarine.GetBuildCost(AIMarine.BT_DEPOT);
+  this.fixMoney(costs)
+
   foreach( tile, value in tiles ) {
     if( !AIMap.IsValidTile(tile)) {
        continue
@@ -201,7 +213,11 @@ function MGAI::buildShip(source, destination, dock)
   vehicle_list.Valuate(AIEngine.GetCargoType )
   vehicle_list.KeepValue(oilCargoId)
 
-  local ship = AIVehicle.BuildVehicle(dock, vehicle_list.Begin())
+  local vehicle = vehicle_list.Begin();
+
+  this.fixMoney(AIEngine.GetPrice(vehicle));
+
+  local ship = AIVehicle.BuildVehicle(dock, vehicle); 
   
   if( !ship ) {
     AILog.Warning("Building failed with an error: " + AIError.GetLastErrorString());
@@ -213,6 +229,16 @@ function MGAI::buildShip(source, destination, dock)
 
   AIVehicle.StartStopVehicle(ship)
   return ship
+}
+
+function MGAI::fixMoney(money)
+{
+  local balance = AICompany.GetBankBalance(AICompany.COMPANY_SELF)
+  
+  if (balance < money) {
+    local loan = AICompany.GetLoanAmount()
+    AICompany.SetMinimumLoanAmount(loan + money)
+  }
 }
 
 function MGAI::pickOilRig()
@@ -239,20 +265,16 @@ function MGAI::pickOilRig()
   return foundOilRig
 }
 
-function MGAI::searchRefinery(oilrig)
+function MGAI::searchRefineries(oilrig)
 {
-  local refineries_list = AIIndustryList_CargoAccepting(oilCargoId)
-  local destination = null;
-
-  foreach( refinery, value in refineries_list )
-  {
-    if( AIMap.DistanceManhattan( AIIndustry.GetLocation(oilrig), AIIndustry.GetLocation(refinery) ) < 250 ) {
-        AILog.Info(AIIndustry.GetName(refinery))
-        return refinery;
-    }
-  }
-  
-  return false;
+  local refineries = AIIndustryList_CargoAccepting(oilCargoId)
+  refineries.Valuate(Manhattan, oilrig)
+  refineries.KeepBelowValue(175)
+  return refineries
 }
 
+
+  function Manhattan(refinery, oilrig) {
+    return AIMap.DistanceManhattan( AIIndustry.GetLocation(oilrig), AIIndustry.GetLocation(refinery) )
+  }
 
