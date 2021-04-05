@@ -1,3 +1,7 @@
+import("util.MinchinWeb", "MinchinWeb", 9);
+ShipPathfinder <- MinchinWeb.ShipPathfinder;
+Log <- MinchinWeb.Log;
+
 class MGAI extends AIController 
 {
    constructor() {
@@ -66,7 +70,22 @@ function MGAI::Start()
         if (dockTile) {
           continue;
         }
-        dockTile = this.buildDock(refinery)
+        AILog.Info("Found refinery " + AIIndustry.GetName(refinery));
+        if (this.reachable(oilRig, refinery) == false) {
+            AILog.Info("Refinery not reachable by water");
+            continue;
+        }
+
+        AILog.Info("Let's find a tile for a dock near " + AIIndustry.GetName(refinery));
+        local dockTiles = this.findDockTiles(oilRig, refinery)
+        if (dockTiles == false) {
+            AILog.Info("No place for a dock.")
+           continue;
+        }
+
+        AILog.Info("Let's build a dock near " + AIIndustry.GetName(refinery));
+        dockTile = this.buildDock(dockTiles)
+
     }
     
     if( dockTile == false ) {
@@ -107,12 +126,69 @@ function MGAI::GetAdjacentTiles(tile)
 	return adjTiles;
 }
 
-function MGAI::buildDock(refinery)
+function MGAI::reachable(oilRig, refinery)
 {
-  AILog.Info("Let's build a dock near " + AIIndustry.GetName(refinery));
-  local tiles = AITileList_IndustryAccepting(refinery, 5)
-  
-  /* Check if there's already a station */
+  local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK)
+  local refineryTiles = AITileList_IndustryAccepting(refinery, radius)
+
+  refineryTiles.Valuate(AITile.IsWaterTile)
+  refineryTiles.KeepValue(1)
+
+  if (refineryTiles.Count() == 0) {
+    return false
+  }
+return true
+
+  local oilRigTiles = AITileList_IndustryProducing(oilRig, 1)
+  oilRigTiles.Valuate(AITile.IsWaterTile)
+  oilRigTiles.KeepValue(1)
+
+  local oilRigTile = oilRigTiles.Begin()
+  local refineryTile = refineryTiles.Begin()
+
+  local pathfinder = ShipPathfinder();
+
+  pathfinder.InitializePath([oilRigTile], [refineryTile]);
+
+  /* Try to find a path. */
+  local path = false;
+  while (path == false) {
+    path = pathfinder.FindPath(100);
+    this.Sleep(1);
+  }
+
+  if (path == null) {
+    /* No path was found. */
+    AILog.Error("pathfinder.FindPath return null");
+    return false
+  }
+
+  return true
+}
+
+function MGAI::findDockTiles(oilRig, refinery)
+{
+  local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK)
+  local tiles = AITileList_IndustryAccepting(refinery, radius)
+
+  tiles.Valuate(AITile.IsStationTile)
+  tiles.KeepValue(1)
+
+  if (tiles.Count() > 0) {
+    return tiles
+  }
+
+  local tiles = AITileList_IndustryAccepting(refinery, radius)
+
+  tiles.Valuate(AITile.IsCoastTile)
+  tiles.KeepValue(1)
+
+  return tiles
+}
+
+function MGAI::buildDock(tiles)
+{
+  /* Check if there's already a dock build */
   local station = null
   foreach( tile, value in tiles ) {
     station = AIStation.GetStationID(tile)
@@ -120,14 +196,6 @@ function MGAI::buildDock(refinery)
         AILog.Info("Dock already build")
         return tile;
     }
-  }
-  
-  tiles.Valuate(AITile.IsCoastTile)
-  tiles.KeepValue(1)
-  
-  if( tiles.Count() == 0 ) {
-    AILog.Info("No place for a dock.")
-    return false
   }
   
   local dockTile = false
@@ -208,7 +276,7 @@ function MGAI::buildDepot(oilRig) {
   return false
 }
 
-function MGAI::buildShip(source, destination, dock)
+function MGAI::buildShip(source, destination, depot)
 {
   AILog.Info("Let's build a ship" )
   
@@ -220,12 +288,7 @@ function MGAI::buildShip(source, destination, dock)
 
   this.fixMoney(AIEngine.GetPrice(vehicle));
 
-  local ship = AIVehicle.BuildVehicle(dock, vehicle); 
-  
-  if( !ship ) {
-    AILog.Warning("Building failed with an error: " + AIError.GetLastErrorString());
-    return false
-  }
+  local ship = AIVehicle.BuildVehicle(depot, vehicle); 
   
   AIOrder.AppendOrder(ship, source, AIOrder.OF_FULL_LOAD)
   AIOrder.AppendOrder(ship, destination, AIOrder.OF_UNLOAD)
