@@ -1,33 +1,47 @@
-import("pathfinder.road", "PathFinder", 3);
-
 class MGAI extends AIController 
 {
-   function Start();
-   
-   oilCargoId = null;
-   oilrigs_list = null;
-   
    constructor() {
-     this.DetermineOilCargoId()    
-     oilrigs_list = AIIndustryList_CargoProducing(oilCargoId)
+     this.oilCargoId = this.fetchOilCargoId()    
+     this.connectedOilRigs = [];
+     this.failedOilRigs = [];
    }
    
-   function DetermineOilCargoId()
+   function fetchOilCargoId()
    {
      local cargoList = AICargoList();
      cargoList.Valuate(AICargo.HasCargoClass, AICargo.CC_LIQUID);
      cargoList.KeepValue(1);
      if (cargoList.Count() == 0) AILog.Error("Your game doesn't have any oil cargo, and as we are an oil only AI, we can't do anything");
 
-     oilCargoId = cargoList.Begin();
+     return cargoList.Begin();
    }
    
+   oilCargoId = null;
+   connectedOilRigs = null;
+   failedOilRigs = null;
+}
+
+function MGAI::Save()
+{
+  local table = {connectedOilRigs = this.connectedOilRigs, failedOilRigs = this.failedOilRigs};
+  return table;
+}
+
+function MGAI::Load(version, data)
+{
+  if (data.rawin("connectedOilRigs")) {
+    this.connectedOilRigs = data.rawget("connectedOilRigs");
+  }
+
+  if (data.rawin("failedOilRigs")) {
+    this.failedOilRigs = data.rawget("failedOilRigs");
+  }
 }
 
 function MGAI::Start()
 {
   while (true) {
-    this.Sleep(50);
+    this.Sleep(25);
   
     local oilRig = this.pickOilRig()
     
@@ -40,25 +54,35 @@ function MGAI::Start()
     
     if( refinery == false ) {
       AILog.Info("No suitable oil rig found")
+      this.failedOilRigs.append(oilRig);
       continue
     }
     
     local dockTile = this.buildDock(refinery)
     
     if( dockTile == false ) {
+      this.failedOilRigs.append(oilRig);
       continue
     }
     
     local depotTile = this.buildDepot(oilRig)
     if( depotTile == false ) {
+      this.failedOilRigs.append(oilRig);
       continue
     }
 
-    this.buildShip(
+    local ship = this.buildShip(
       AIIndustry.GetDockLocation(oilRig),
       dockTile,
       depotTile
     )  
+
+    if (ship == false) {
+      this.failedOilRigs.append(oilRig);
+      continue;
+    }
+
+    this.connectedOilRigs.append(oilRig);
   }
 }
 
@@ -193,13 +217,26 @@ function MGAI::buildShip(source, destination, dock)
 
 function MGAI::pickOilRig()
 {
-  oilrigs_list.Valuate(AIIndustry.IsBuiltOnWater)
-  oilrigs_list.Valuate(AIIndustry.HasDock)
-  oilrigs_list.KeepValue(1)
+  local oilrigs = AIIndustryList_CargoProducing(this.oilCargoId)
 
-  AILog.Info(AIIndustry.GetName(OilRig))
+  foreach(oilRig in this.failedOilRigs) {
+    oilrigs.RemoveItem(oilRig)
+  }
+ 
+  foreach(oilRig in this.connectedOilRigs) {
+    oilrigs.RemoveItem(oilRig)
+  }
+
+  oilrigs.Valuate(AIIndustry.GetLastMonthTransported, this.oilCargoId)
+  oilrigs.KeepValue(0)
+  oilrigs.Valuate(AIIndustry.HasDock)
+  oilrigs.KeepValue(1)
   
-  return OilRig
+  local foundOilRig = oilrigs.Begin()
+
+  AILog.Info(AIIndustry.GetName(foundOilRig))
+  
+  return foundOilRig
 }
 
 function MGAI::searchRefinery(oilrig)
@@ -209,19 +246,13 @@ function MGAI::searchRefinery(oilrig)
 
   foreach( refinery, value in refineries_list )
   {
-    if( AIMap.DistanceManhattan( AIIndustry.GetLocation(oilrig), AIIndustry.GetLocation(refinery) ) < 100 ) {
-      destination = refinery
-      break;
+    if( AIMap.DistanceManhattan( AIIndustry.GetLocation(oilrig), AIIndustry.GetLocation(refinery) ) < 250 ) {
+        AILog.Info(AIIndustry.GetName(refinery))
+        return refinery;
     }
   }
   
-  if( destination ) {
-    AILog.Info(AIIndustry.GetName(destination))
-    return destination;
-  }
-  else {
-    return false;
-  }
+  return false;
 }
 
 
