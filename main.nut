@@ -40,6 +40,7 @@ function MGAI::Load(version, data)
 
 function MGAI::Start()
 {
+
   while (true) {
     this.Sleep(50);
   
@@ -50,10 +51,12 @@ function MGAI::Start()
       continue;
     }
     
+    AILog.Info("Start connecting " + AIIndustry.GetName(oilRig))
+  
     local refineries = this.searchRefineries(oilRig);
     
     if( refineries.Count() == 0) {
-      AILog.Info("No suitable oil rig found")
+      AILog.Info("No suitable refineries found")
       this.failedOilRigs.append(oilRig);
       continue
     }
@@ -211,7 +214,7 @@ function MGAI::buildShip(source, destination, dock)
   
   local vehicle_list = AIEngineList(AIVehicle.VT_WATER)
   vehicle_list.Valuate(AIEngine.GetCargoType )
-  vehicle_list.KeepValue(oilCargoId)
+  vehicle_list.KeepValue(this.oilCargoId)
 
   local vehicle = vehicle_list.Begin();
 
@@ -258,11 +261,10 @@ function MGAI::pickOilRig()
   oilrigs.Valuate(AIIndustry.HasDock)
   oilrigs.KeepValue(1)
   
-  local foundOilRig = oilrigs.Begin()
-
-  AILog.Info(AIIndustry.GetName(foundOilRig))
-  
-  return foundOilRig
+  if (oilrigs.Count() == 0) {
+    return false
+  }
+  return oilrigs.Begin()
 }
 
 function MGAI::searchRefineries(oilrig)
@@ -274,7 +276,7 @@ function MGAI::searchRefineries(oilrig)
 }
 
 
-  function Manhattan(refinery, oilrig) {
+function Manhattan(refinery, oilrig) {
     return AIMap.DistanceManhattan( AIIndustry.GetLocation(oilrig), AIIndustry.GetLocation(refinery) )
-  }
+}
 
