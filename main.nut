@@ -199,6 +199,12 @@ function MGAI::findDockTiles(oilRig, refinery)
   tiles.Valuate(AITile.IsStationTile);
   tiles.KeepValue(1);
 
+  local validStation = function (tile) {
+     return AIStation.IsValidStation(AIStation.GetStationID(tile));
+  }
+  tiles.Valuate(validStation);
+  tiles.KeepValue(1);
+
   if (tiles.Count() > 0) {
     return tiles;
   }
@@ -224,7 +230,6 @@ function MGAI::buildDock(tiles)
   }
 
   local dockTile = false;
-  local dockStation = false;
 
   local costs = AIMarine.GetBuildCost(AIMarine.BT_DOCK);
   this.fixMoney(costs);
@@ -234,7 +239,6 @@ function MGAI::buildDock(tiles)
     if( AIMarine.BuildDock(tile, AIStation.STATION_NEW))
     {
       dockTile = tile;
-      dockStation = AIStation.GetStationID(tile);
       break;
     }
   }
