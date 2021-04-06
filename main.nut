@@ -48,6 +48,7 @@ function MGAI::Start()
 {
   while (true) {
     this.Sleep(50);
+    this.PollEvents();
 
     local oilRig = this.pickOilRig();
 
@@ -111,6 +112,23 @@ function MGAI::Start()
     }
 
     this.connectedOilRigs.append(oilRig);
+  }
+}
+
+function MGAI::PollEvents()
+{
+  while (AIEventController.IsEventWaiting()) {
+    local e = AIEventController.GetNextEvent();
+    switch (e.GetEventType()) {
+      case AIEvent.ET_INDUSTRY_OPEN:
+        local ec = AIEventIndustryOpen.Convert(e);
+        local i  = ec.GetIndustryID();
+        AILog.Info("We have a new industry (" + AIIndustry.GetName(i) + ")");
+        if (AIIndustry.IsCargoAccepted(i, this.oilCargoId)) {
+          this.failedOilRigs = [];
+        }
+        break;
+    }
   }
 }
 
