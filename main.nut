@@ -134,6 +134,9 @@ function MGAI::reachable(oilRig, refinery)
   refineryTiles.Valuate(AITile.IsWaterTile);
   refineryTiles.KeepValue(1);
 
+  refineryTiles.Valuate(AIMarine.IsCanalTile);
+  refineryTiles.KeepValue(0);
+
   if (refineryTiles.Count() == 0) {
     return false;
   }
