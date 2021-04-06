@@ -305,11 +305,6 @@ function MGAI::fixMoney(money)
   local balance = AICompany.GetBankBalance(AICompany.COMPANY_SELF);
   local loan = AICompany.GetLoanAmount();
 
-  /* Repay loan as much as possible */
-  if (balance > money) {
-    AICompany.SetMinimumLoanAmount(loan - balance);
-  }  
-
   /* Take a loan when balance is to low */
   if (balance < money) {
     AICompany.SetMinimumLoanAmount(loan + money);
