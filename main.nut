@@ -2,7 +2,7 @@ import("util.MinchinWeb", "MinchinWeb", 9);
 ShipPathfinder <- MinchinWeb.ShipPathfinder;
 Log <- MinchinWeb.Log;
 
-class MGAI extends AIController 
+class MGAI extends AIController
 {
   constructor() {
     this.oilCargoId = this.fetchOilCargoId();
@@ -309,7 +309,7 @@ function MGAI::buildShip(source, destination, depot)
 
   this.fixMoney(AIEngine.GetPrice(vehicle));
 
-  local ship = AIVehicle.BuildVehicle(depot, vehicle); 
+  local ship = AIVehicle.BuildVehicle(depot, vehicle);
 
   AIOrder.AppendOrder(ship, source, AIOrder.OF_FULL_LOAD);
   AIOrder.AppendOrder(ship, destination, AIOrder.OF_UNLOAD);
