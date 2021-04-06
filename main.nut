@@ -46,8 +46,6 @@ function MGAI::Load(version, data)
 
 function MGAI::Start()
 {
-  _MinchinWeb_Log_.PrintDebugLevel();
-
   while (true) {
     this.Sleep(50);
 
@@ -79,7 +77,7 @@ function MGAI::Start()
         continue;
       }
 
-      AILog.Info("Let's find a tile for a dock near " + AIIndustry.GetName(refinery));
+      AILog.Info("Let's find tiles for a dock near " + AIIndustry.GetName(refinery));
       local dockTiles = this.findDockTiles(oilRig, refinery);
       if (dockTiles == false) {
         AILog.Info("No place for a dock.");
@@ -88,7 +86,6 @@ function MGAI::Start()
 
       AILog.Info("Let's build a dock near " + AIIndustry.GetName(refinery));
       dockTile = this.buildDock(dockTiles);
-
     }
 
     if( dockTile == false ) {
@@ -96,11 +93,11 @@ function MGAI::Start()
       continue;
     }
 
-    local depotTile = this.buildDepot(oilRig)
-      if( depotTile == false ) {
-        this.failedOilRigs.append(oilRig);
-        continue;
-      }
+    local depotTile = this.buildDepot(oilRig);
+    if( depotTile == false ) {
+      this.failedOilRigs.append(oilRig);
+      continue;
+    }
 
     local ship = this.buildShip(
         AIIndustry.GetDockLocation(oilRig),
@@ -140,6 +137,8 @@ function MGAI::reachable(oilRig, refinery)
   if (refineryTiles.Count() == 0) {
     return false;
   }
+
+  /* Stop using pathfinder for speed */
   return true;
 
   local oilRigTiles = AITileList_IndustryProducing(oilRig, 1);
