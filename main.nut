@@ -344,6 +344,8 @@ function MGAI::searchRefineries(oilRig)
   refineries.Valuate(manhattan, oilRig);
   refineries.KeepBelowValue(175);
 
+  refineries.Sort(AIList.SORT_BY_VALUE, true);
+
   return refineries;
 }
 
