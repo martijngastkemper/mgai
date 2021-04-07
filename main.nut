@@ -1,5 +1,6 @@
 import("util.MinchinWeb", "MinchinWeb", 9);
 ShipPathfinder <- MinchinWeb.ShipPathfinder;
+Lakes <- MinchinWeb.Lakes;
 Log <- MinchinWeb.Log;
 
 class MGAI extends AIController
@@ -25,6 +26,7 @@ class MGAI extends AIController
   oilCargoId = null;
   connectedOilRigs = null;
   failedOilRigs = null;
+  pathfinder = null;
 }
 
 function MGAI::Save()
@@ -46,6 +48,7 @@ function MGAI::Load(version, data)
 
 function MGAI::Start()
 {
+  this.pathfinder = Lakes();
   while (true) {
     this.Sleep(50);
     this.PollEvents();
@@ -73,15 +76,17 @@ function MGAI::Start()
         continue;
       }
       AILog.Info("Found refinery " + AIIndustry.GetName(refinery));
-      if (this.reachable(oilRig, refinery) == false) {
-        AILog.Info("Refinery not reachable by water");
-        continue;
-      }
 
       AILog.Info("Let's find tiles for a dock near " + AIIndustry.GetName(refinery));
       local dockTiles = this.findDockTiles(oilRig, refinery);
-      if (dockTiles == false) {
+      if (dockTiles.Count() == 0) {
         AILog.Info("No place for a dock.");
+        continue;
+      }
+
+      AILog.Info("There is place for a dock, let's check if it's reachable");
+      if (this.reachable(oilRig, refinery) == false) {
+        AILog.Info("Refinery not reachable by water");
         continue;
       }
 
@@ -171,14 +176,12 @@ function MGAI::reachable(oilRig, refinery)
   local oilRigTile = oilRigTiles.Begin();
   local refineryTile = refineryTiles.Begin();
 
-  local pathfinder = ShipPathfinder();
-
-  pathfinder.InitializePath([oilRigTile], [refineryTile]);
+  this.pathfinder.InitializePath([refineryTile], [oilRigTile]);
 
   /* Try to find a path. */
   local path = false;
   while (path == false) {
-    path = pathfinder.FindPath(100);
+    path = this.pathfinder.FindPath(100);
     this.Sleep(1);
   }
 
@@ -212,6 +215,14 @@ function MGAI::findDockTiles(oilRig, refinery)
   local tiles = AITileList_IndustryAccepting(refinery, radius);
 
   tiles.Valuate(AITile.IsCoastTile);
+  tiles.KeepValue(1);
+
+  local checkSlope = function (tile) {
+    local slope = AITile.GetSlope(tile);
+    return slope == AITile.SLOPE_NW || slope == AITile.SLOPE_SW || slope == AITile.SLOPE_SE || slope == AITile.SLOPE_NE;
+  }
+
+  tiles.Valuate(checkSlope);
   tiles.KeepValue(1);
 
   return tiles;
