@@ -51,10 +51,6 @@ function MGAI::Start()
     this.Sleep(50);
     this.PollEvents();
 
-    foreach(sign, value in AISignList()) {
-      AISign.RemoveSign(sign);
-    }
-
     local oilRig = this.pickOilRig();
 
     if( oilRig == false ) {
@@ -179,7 +175,7 @@ function MGAI::reachable(oilRig, refinery)
   this.pathfinder.InitializePath([oilRigTiles.Begin()], [refineryTiles.Begin()]);
 
   /* Try to find a path. */
-  local path = this.pathfinder.FindPath(5);
+  local path = this.pathfinder.FindPath(1000);
 
   if (path == null) {
     /* No path was found. */
