@@ -51,18 +51,19 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
 }
 
 function Pathfinder::_Neighbours(self, path, cur_tile) {
-  AISign.BuildSign(cur_tile, "->");
+  if (AISign.IsValidSign(cur_tile)) {
+    AISign.SetName(cur_tile, AISign.GetName(cur_tile).tointeger() + 1);
+  } else {
+    AISign.BuildSign(cur_tile, "1");
+  }
 
   local tiles = [];
 
   foreach (offset in self._offsets) {
     local next_tile = cur_tile + offset;
 
-    /* Don't turn back */
-    if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
-
     /* Skip non coast and water tiles */
-    if (!AITile.IsCoastTile(next_tile) && !AITile.IsWaterTile(next_tile)) continue;
+    if (!AITile.IsWaterTile(next_tile)) continue;
 
     if (path.GetParent() == null) {
       tiles.push([next_tile, self._GetDirection(null, cur_tile, next_tile)]);
