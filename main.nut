@@ -179,11 +179,7 @@ function MGAI::reachable(oilRig, refinery)
   this.pathfinder.InitializePath([oilRigTiles.Begin()], [refineryTiles.Begin()]);
 
   /* Try to find a path. */
-  local path = false;
-  while (path == false) {
-    path = this.pathfinder.FindPath(5);
-    this.Sleep(1);
-  }
+  local path = this.pathfinder.FindPath(5);
 
   if (path == null) {
     /* No path was found. */
