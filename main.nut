@@ -172,7 +172,17 @@ function MGAI::reachable(oilRig, refinery)
   oilRigTiles.Valuate(AITile.IsWaterTile);
   oilRigTiles.KeepValue(1);
 
-  this.pathfinder.InitializePath([oilRigTiles.Begin()], [refineryTiles.Begin()]);
+  local sources = [];
+  foreach(idx, value in oilRigTiles) {
+    sources.push(idx);
+  }
+
+  local goals = [];
+  foreach(idx, value in refineryTiles) {
+    goals.push(idx);
+  }
+
+  this.pathfinder.InitializePath(sources, goals);
 
   /* Try to find a path. */
   local path = this.pathfinder.FindPath(1000);
