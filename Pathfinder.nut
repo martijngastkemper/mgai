@@ -7,12 +7,19 @@ class Pathfinder {
   _running = null;
   _max_cost = null;
   _tile_cost = null;
+  _offsets = null;
 
   constructor() {
     this._pathfinder = this._aystar_class(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
     this._running = false;
     this._max_cost = 100000;
     this._tile_cost = 10;
+    this._offsets = [
+      AIMap.GetTileIndex(0, 1),
+      AIMap.GetTileIndex(0, -1),
+      AIMap.GetTileIndex(1, 0),
+      AIMap.GetTileIndex(-1, 0)
+    ];
   }
 
   function InitializePath(sources, goals, ignored_tiles = []) {
@@ -54,12 +61,9 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
 function Pathfinder::_Neighbours(self, path, cur_tile) {
   print("_Neighbours");
 
-  local offsets = [AIMap.GetTileIndex(0, 1), AIMap.GetTileIndex(0, -1),
-        AIMap.GetTileIndex(1, 0), AIMap.GetTileIndex(-1, 0)];
-
   local tiles = [];
 
-  foreach (offset in offsets) {
+  foreach (offset in self._offsets) {
     local next_tile = cur_tile + offset;
 
     /* Don't turn back */
