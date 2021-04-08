@@ -51,7 +51,7 @@ function MGAI::Start()
     this.Sleep(50);
     this.PollEvents();
 
-    foreach(sign in AISignList()) {
+    foreach(sign, value in AISignList()) {
       AISign.RemoveSign(sign);
     }
 
