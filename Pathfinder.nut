@@ -37,8 +37,6 @@ class Pathfinder {
 }
 
 function Pathfinder::_Cost(self, path, new_tile, new_direction) {
-  print("_Cost");
-
   AISign.BuildSign(new_tile, "->");
 
   if (path == null) return 0;
@@ -47,8 +45,6 @@ function Pathfinder::_Cost(self, path, new_tile, new_direction) {
 }
 
 function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
-  print("_Estimate");
-
   local min_cost = self._max_cost;
 
   foreach(goal_tile in goal_tiles) {
@@ -59,8 +55,6 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
 }
 
 function Pathfinder::_Neighbours(self, path, cur_tile) {
-  print("_Neighbours");
-
   local tiles = [];
 
   foreach (offset in self._offsets) {
@@ -82,12 +76,10 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
 }
 
 function Pathfinder::_CheckDirection(self, tile, existing_direction, new_direction) {
-  print("_CheckDirection");
   return false;
 }
 
 function Pathfinder::FindPath(iterations) {
-  print("FindPath");
   local ret = this._pathfinder.FindPath(iterations);
   this._running = (ret == false) ? true : false;
   if (!this._running && ret != null) {
