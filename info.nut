@@ -6,7 +6,7 @@ class MGAI extends AIInfo {
   function GetDate()        { return "2021-04-06"; }
   function CreateInstance() { return "MGAI"; }
   function GetShortName()   { return "XXXX"; }
-  function GetAPIVersion()  { return "1.0"; }
+  function GetAPIVersion()  { return "1.11"; }
 
   function GetSettings() {
     AddSetting({

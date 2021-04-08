@@ -1,7 +1,4 @@
-import("util.MinchinWeb", "MinchinWeb", 9);
-ShipPathfinder <- MinchinWeb.ShipPathfinder;
-Lakes <- MinchinWeb.Lakes;
-Log <- MinchinWeb.Log;
+require("Pathfinder.nut");
 
 class MGAI extends AIController
 {
@@ -9,6 +6,7 @@ class MGAI extends AIController
     this.oilCargoId = this.fetchOilCargoId();
     this.connectedOilRigs = [];
     this.failedOilRigs = [];
+    this.pathfinder = Pathfinder();
   }
 
   function fetchOilCargoId()
@@ -48,10 +46,14 @@ function MGAI::Load(version, data)
 
 function MGAI::Start()
 {
-  this.pathfinder = Lakes();
+
   while (true) {
     this.Sleep(50);
     this.PollEvents();
+
+    foreach(sign in AISignList()) {
+      AISign.RemoveSign(sign);
+    }
 
     local oilRig = this.pickOilRig();
 
@@ -170,18 +172,19 @@ function MGAI::reachable(oilRig, refinery)
   }
 
   local oilRigTiles = AITileList_IndustryProducing(oilRig, 1);
+
   oilRigTiles.Valuate(AITile.IsWaterTile);
   oilRigTiles.KeepValue(1);
 
-  local oilRigTile = oilRigTiles.Begin();
-  local refineryTile = refineryTiles.Begin();
-
-  this.pathfinder.InitializePath([refineryTile], [oilRigTile]);
+  /* this.pathfinder.InitializePath([refineryTiles.Begin()], [oilRigTiles.Begin()]); */
+  this.pathfinder.InitializePath([oilRigTiles.Begin()], [refineryTiles.Begin()]);
+  /* this.pathfinder.InitializePath(toArray(refineryTiles), toArray(oilRigTiles)); */
+  /* this.pathfinder.InitializePath([0x089D], [0x0897]); */
 
   /* Try to find a path. */
   local path = false;
   while (path == false) {
-    path = this.pathfinder.FindPath(100);
+    path = this.pathfinder.FindPath(5);
     this.Sleep(1);
   }
 
@@ -377,7 +380,7 @@ function MGAI::searchRefineries(oilRig)
   }
 
   refineries.Valuate(manhattan, oilRig);
-  refineries.KeepBelowValue(175);
+  refineries.KeepBelowValue(150);
 
   refineries.Sort(AIList.SORT_BY_VALUE, true);
 
