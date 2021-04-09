@@ -162,11 +162,6 @@ function MGAI::reachable(oilRig, refinery)
     return false;
   }
 
-  /* Stop using pathfinder for speed */
-  if (!AIController.GetSetting("Use_Pathfinder")) {
-    return true;
-  }
-
   local oilRigTiles = AITileList_IndustryProducing(oilRig, 1);
 
   oilRigTiles.Valuate(AITile.IsWaterTile);

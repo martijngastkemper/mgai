@@ -20,17 +20,6 @@ class MGAI extends AIInfo {
       custom_value = 3,
       flags = CONFIG_INGAME
     });
-    AddSetting({
-      name = "Use_Pathfinder",
-      description = "Disable pathfinder to speedup the AI. Connection by water won't be checked",
-      min_value = 0,
-      max_value = 1,
-      easy_value = 1,
-      medium_value = 1,
-      hard_value = 1,
-      custom_value = 1,
-      flags = CONFIG_INGAME
-    });
   }
 }
 
