@@ -168,12 +168,12 @@ function MGAI::reachable(oilRig, refinery)
   oilRigTiles.KeepValue(1);
 
   local sources = [];
-  foreach(idx, value in oilRigTiles) {
+  foreach(idx, value in refineryTiles) {
     sources.push(idx);
   }
 
   local goals = [];
-  foreach(idx, value in refineryTiles) {
+  foreach(idx, value in oilRigTiles) {
     goals.push(idx);
   }
 
