@@ -1,7 +1,7 @@
+require("AYStar.nut");
 
 class Pathfinder {
 
-  _aystar_class = import("graph.aystar", "", 6);
   _pathfinder = null;
   _goals = null;
   _max_cost = null;
@@ -9,14 +9,18 @@ class Pathfinder {
   _offsets = null;
 
   constructor() {
-    this._pathfinder = this._aystar_class(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
-    this._max_cost = 100000;
-    this._tile_cost = 10;
+    this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
+    this._max_cost = 30000;
+    this._tile_cost = 2;
     this._offsets = [
+      AIMap.GetTileIndex(-1, -1),
+      AIMap.GetTileIndex(-1, 0),
+      AIMap.GetTileIndex(-1, 1),
       AIMap.GetTileIndex(0, 1),
-      AIMap.GetTileIndex(0, -1),
+      AIMap.GetTileIndex(1, 1),
       AIMap.GetTileIndex(1, 0),
-      AIMap.GetTileIndex(-1, 0)
+      AIMap.GetTileIndex(1, -1),
+      AIMap.GetTileIndex(0, -1),
     ];
   }
 
@@ -24,7 +28,8 @@ class Pathfinder {
     local nsources = [];
 
     foreach (node in sources) {
-      local path = this._pathfinder.Path(null, node, 0xFF, this._Cost, this);
+      /* tile and direction. direction can't be zero, so let's pick 1 */
+      local path = [node, 1];
       nsources.push(path);
     }
     this._goals = goals;
@@ -42,28 +47,26 @@ function Pathfinder::_Cost(self, path, new_tile, new_direction) {
 
 function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
-
-  foreach(goal_tile in goal_tiles) {
-    min_cost = min(min_cost, AIMap.DistanceManhattan(cur_tile, goal_tile) * self._tile_cost);
+  foreach (tile in goal_tiles) {
+    local distance = AIMap.DistanceSquare(cur_tile, tile);
+    min_cost = min(min_cost, distance * self._tile_cost);
   }
-
   return min_cost;
 }
 
 function Pathfinder::_Neighbours(self, path, cur_tile) {
-  if (AISign.IsValidSign(cur_tile)) {
-    AISign.SetName(cur_tile, AISign.GetName(cur_tile).tointeger() + 1);
-  } else {
-    AISign.BuildSign(cur_tile, "1");
-  }
-
   local tiles = [];
+
+  if (path.GetCost() >= self._max_cost) return [];
 
   foreach (offset in self._offsets) {
     local next_tile = cur_tile + offset;
 
     /* Skip non coast and water tiles */
     if (!AITile.IsWaterTile(next_tile)) continue;
+
+    /* Don't turn back */
+    if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
 
     if (path.GetParent() == null) {
       tiles.push([next_tile, self._GetDirection(null, cur_tile, next_tile)]);
@@ -75,7 +78,7 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
 }
 
 function Pathfinder::_CheckDirection(self, tile, existing_direction, new_direction) {
-  return true;
+  return false;
 }
 
 function Pathfinder::FindPath(iterations) {
@@ -98,15 +101,21 @@ function Pathfinder::FindPath(iterations) {
 
 function Pathfinder::_dir(from, to)
 {
-  if (from - to == 1) return 0;
-  if (from - to == -1) return 1;
-  if (from - to == AIMap.GetMapSizeX()) return 2;
-  if (from - to == -AIMap.GetMapSizeX()) return 3;
+  local diff = from - to;
+  local mapsize = AIMap.GetMapSizeX();
+  if (diff == -mapsize - 1) return 0;
+  if (diff == -1) return 1;
+  if (diff == mapsize - 1) return 2;
+  if (diff == mapsize) return 3;
+  if (diff == mapsize + 1) return 4;
+  if (diff == 1) return 5;
+  if (diff == -mapsize + 1) return 6;
+  if (diff == -mapsize) return 7;
   throw("Shouldn't come here in _dir");
 }
 
 function Pathfinder::_GetDirection(pre_from, from, to)
 {
-  local result = 1 << (4 + (pre_from == null ? 0 : 4 * this._dir(pre_from, from)) + this._dir(from, to));
+  local result = 1 << ((pre_from == null ? 0 : this._dir(pre_from, from)) + this._dir(from, to));
   return result;
 }

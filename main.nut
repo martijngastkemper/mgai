@@ -185,7 +185,7 @@ function MGAI::reachable(oilRig, refinery)
   this.pathfinder.InitializePath(sources, goals);
 
   /* Try to find a path. */
-  local path = this.pathfinder.FindPath(1000);
+  local path = this.pathfinder.FindPath(500);
 
   if (path == null) {
     /* No path was found. */
