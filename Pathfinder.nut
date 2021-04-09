@@ -13,13 +13,9 @@ class Pathfinder {
     this._max_cost = 30000;
     this._tile_cost = 2;
     this._offsets = [
-      AIMap.GetTileIndex(-1, -1),
       AIMap.GetTileIndex(-1, 0),
-      AIMap.GetTileIndex(-1, 1),
       AIMap.GetTileIndex(0, 1),
-      AIMap.GetTileIndex(1, 1),
       AIMap.GetTileIndex(1, 0),
-      AIMap.GetTileIndex(1, -1),
       AIMap.GetTileIndex(0, -1),
     ];
   }
@@ -62,11 +58,15 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
   foreach (offset in self._offsets) {
     local next_tile = cur_tile + offset;
 
-    /* Skip non coast and water tiles */
-    if (!AITile.IsWaterTile(next_tile)) continue;
+    /* Skip non lock and water tiles */
+    if (!AITile.IsWaterTile(next_tile) && !AIMarine.IsLockTile(next_tile)) continue;
 
     /* Don't turn back */
     if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
+
+    /* Check for water connection because of sea to river tiles */
+    local connected = AIMarine.AreWaterTilesConnected(cur_tile, next_tile);
+    if (!connected) continue;
 
     if (path.GetParent() == null) {
       tiles.push([next_tile, self._GetDirection(null, cur_tile, next_tile)]);
@@ -103,13 +103,9 @@ function Pathfinder::_dir(from, to)
 {
   local diff = from - to;
   local mapsize = AIMap.GetMapSizeX();
-  if (diff == -mapsize - 1) return 0;
   if (diff == -1) return 1;
-  if (diff == mapsize - 1) return 2;
   if (diff == mapsize) return 3;
-  if (diff == mapsize + 1) return 4;
   if (diff == 1) return 5;
-  if (diff == -mapsize + 1) return 6;
   if (diff == -mapsize) return 7;
   throw("Shouldn't come here in _dir");
 }

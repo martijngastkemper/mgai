@@ -83,7 +83,8 @@ function MGAI::Start()
       }
 
       AILog.Info("There is place for a dock, let's check if it's reachable");
-      if (this.reachable(oilRig, refinery) == false) {
+      local path = this.GetPath(oilRig, refinery);
+      if (path == false) {
         AILog.Info("Refinery not reachable by water");
         continue;
       }
@@ -147,7 +148,7 @@ function MGAI::GetAdjacentTiles(tile)
   return adjTiles;
 }
 
-function MGAI::reachable(oilRig, refinery)
+function MGAI::GetPath(oilRig, refinery)
 {
   local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
   local refineryTiles = AITileList_IndustryAccepting(refinery, radius);
@@ -188,7 +189,7 @@ function MGAI::reachable(oilRig, refinery)
     return false;
   }
 
-  return true;
+  return path;
 }
 
 function MGAI::findDockTiles(oilRig, refinery)
@@ -211,15 +212,30 @@ function MGAI::findDockTiles(oilRig, refinery)
 
   local tiles = AITileList_IndustryAccepting(refinery, radius);
 
-  tiles.Valuate(AITile.IsCoastTile);
-  tiles.KeepValue(1);
-
   local checkSlope = function (tile) {
     local slope = AITile.GetSlope(tile);
     return slope == AITile.SLOPE_NW || slope == AITile.SLOPE_SW || slope == AITile.SLOPE_SE || slope == AITile.SLOPE_NE;
   }
 
   tiles.Valuate(checkSlope);
+  tiles.KeepValue(1);
+
+  local checkAdjacentWaterTiles = function (tile) {
+    local offsets = [
+      AIMap.GetTileIndex(-1, 0),
+      AIMap.GetTileIndex(0, 1),
+      AIMap.GetTileIndex(1, 0),
+      AIMap.GetTileIndex(0, -1),
+    ];
+
+    foreach(offset in offsets) {
+       if (AITile.IsWaterTile(tile + offset)) {
+         return true;
+       }
+    }
+    return false;
+  }
+  tiles.Valuate(checkAdjacentWaterTiles);
   tiles.KeepValue(1);
 
   return tiles;
