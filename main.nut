@@ -7,6 +7,12 @@ class MGAI extends AIController
     this.connectedOilRigs = [];
     this.failedOilRigs = [];
     this.pathfinder = Pathfinder();
+    this._offsets = [
+      AIMap.GetTileIndex(-1, 0),
+      AIMap.GetTileIndex(0, 1),
+      AIMap.GetTileIndex(1, 0),
+      AIMap.GetTileIndex(0, -1),
+    ];
   }
 
   function fetchOilCargoId()
@@ -25,6 +31,7 @@ class MGAI extends AIController
   connectedOilRigs = null;
   failedOilRigs = null;
   pathfinder = null;
+  _offsets = null;
 }
 
 function MGAI::Save()
@@ -68,15 +75,16 @@ function MGAI::Start()
       continue;
     }
 
-    local dockTile = false;
+    local finalDockTile = null;
+
     foreach(refinery, value in refineries) {
-      if (dockTile) {
+      if (finalDockTile != null) {
         continue;
       }
       AILog.Info("Found refinery " + AIIndustry.GetName(refinery));
 
       AILog.Info("Let's find tiles for a dock near " + AIIndustry.GetName(refinery));
-      local dockTiles = this.findDockTiles(oilRig, refinery);
+      local dockTiles = this.getDockableTiles(refinery);
       if (dockTiles.Count() == 0) {
         AILog.Info("No place for a dock.");
         continue;
@@ -89,11 +97,31 @@ function MGAI::Start()
         continue;
       }
 
-      AILog.Info("Let's build a dock near " + AIIndustry.GetName(refinery));
-      dockTile = this.buildDock(dockTiles);
+      local existingDocks = this.getDocks(refinery);
+
+      if (existingDocks.Count() > 0) {
+        AILog.Info("There're existing docks, check if the oilrig can reach them.");
+
+        local waterNextToDockSlopes = this.GetWaterTilesNextToDockableSlopes(existingDocks);
+        this.pathfinder.InitializePath([this.GetPathStartTile(path)], this.AIListToArray(waterNextToDockSlopes));
+
+        local path = this.pathfinder.FindPath(100);
+        finalDockTile = path ? waterNextToDockSlopes.GetValue(path.GetTile()) : null;
+      }
+
+      if (!finalDockTile) {
+        AILog.Info("Let's build a dock near " + AIIndustry.GetName(refinery));
+
+        local waterNextToDockSlopes = this.GetWaterTilesNextToDockableSlopes(dockTiles);
+        this.pathfinder.InitializePath([this.GetPathStartTile(path)], this.AIListToArray(waterNextToDockSlopes));
+
+        /* Try to find a path. */
+        local path = this.pathfinder.FindPath(100);
+        finalDockTile = this.buildDock(waterNextToDockSlopes.GetValue(path.GetTile()));
+      }
     }
 
-    if( dockTile == false ) {
+    if (finalDockTile == null) {
       this.failedOilRigs.append(oilRig);
       continue;
     }
@@ -105,10 +133,10 @@ function MGAI::Start()
     }
 
     local ship = this.buildShip(
-        AIIndustry.GetDockLocation(oilRig),
-        dockTile,
-        depotTile
-        );
+      AIIndustry.GetDockLocation(oilRig),
+      finalDockTile,
+      depotTile
+    );
 
     if (ship == false) {
       this.failedOilRigs.append(oilRig);
@@ -179,7 +207,7 @@ function MGAI::GetPathBetweenRefineryAndOilRig(oilRig, refinery)
   return path;
 }
 
-function MGAI::findDockTiles(oilRig, refinery)
+function MGAI::getDocks(refinery)
 {
   local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
   local tiles = AITileList_IndustryAccepting(refinery, radius);
@@ -188,14 +216,17 @@ function MGAI::findDockTiles(oilRig, refinery)
   tiles.KeepValue(1);
 
   local validStation = function (tile) {
-     return AIStation.IsValidStation(AIStation.GetStationID(tile));
+    return AIStation.IsValidStation(AIStation.GetStationID(tile));
   }
   tiles.Valuate(validStation);
   tiles.KeepValue(1);
 
-  if (tiles.Count() > 0) {
-    return tiles;
-  }
+  return tiles;
+}
+
+function MGAI::getDockableTiles(refinery)
+{
+  local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
 
   local tiles = AITileList_IndustryAccepting(refinery, radius);
 
@@ -214,11 +245,13 @@ function MGAI::findDockTiles(oilRig, refinery)
       AIMap.GetTileIndex(1, 0),
       AIMap.GetTileIndex(0, -1),
     ];
+    local tileHeight = AITile.GetMinHeight(tile);
 
     foreach(offset in offsets) {
-       if (AITile.IsWaterTile(tile + offset)) {
-         return true;
-       }
+      local next = tile + offset;
+      if (AITile.IsWaterTile(tile + offset) && AITile.GetMinHeight(next) == tileHeight) {
+        return true;
+      }
     }
     return false;
   }
@@ -228,33 +261,13 @@ function MGAI::findDockTiles(oilRig, refinery)
   return tiles;
 }
 
-function MGAI::buildDock(tiles)
+function MGAI::buildDock(tile)
 {
-  /* Check if there's already a dock build */
-  local station = null;
-  foreach( tile, value in tiles ) {
-    station = AIStation.GetStationID(tile);
-    if( station && AIStation.IsValidStation(station) ) {
-      AILog.Info("Dock already build");
-      return tile;
-    }
-  }
-
-  local dockTile = false;
-
   local costs = AIMarine.GetBuildCost(AIMarine.BT_DOCK);
   this.fixMoney(costs);
 
-  foreach( tile, value in tiles )
-  {
-    if( AIMarine.BuildDock(tile, AIStation.STATION_NEW))
-    {
-      dockTile = tile;
-      break;
-    }
-  }
-
-  return dockTile;
+  local build = AIMarine.BuildDock(tile, AIStation.STATION_NEW);
+  return build ? tile : null;
 }
 
 function MGAI::buildDepot(oilRig) {
@@ -384,4 +397,27 @@ function MGAI::AIListToArray(ailist) {
     sources.push(idx);
   }
   return sources;
+}
+
+function MGAI::GetPathStartTile(path) {
+  local parentPath = path;
+  local result = null;
+  while(parentPath != null) {
+    result = parentPath.GetTile();
+    parentPath = parentPath.GetParent();
+  }
+  return result;
+}
+
+function MGAI::GetWaterTilesNextToDockableSlopes(dockSlopes) {
+  local waterNextToDockSlopes = AIList();
+  foreach(dockSlope, value in dockSlopes) {
+    foreach(offset in this._offsets) {
+      local next = dockSlope + offset;
+      if (AITile.IsWaterTile(next)) {
+        waterNextToDockSlopes.AddItem(next, dockSlope);
+      }
+    }
+  }
+  return waterNextToDockSlopes;
 }

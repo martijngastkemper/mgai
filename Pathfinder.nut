@@ -58,7 +58,7 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
   foreach (offset in self._offsets) {
     local next_tile = cur_tile + offset;
 
-    /* Skip non lock and water tiles */
+    /* Only water (includes river and canals) and lock tiles are neighbours */
     if (!AITile.IsWaterTile(next_tile) && !AIMarine.IsLockTile(next_tile)) continue;
 
     /* Don't turn back */
