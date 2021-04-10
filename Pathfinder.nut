@@ -86,17 +86,7 @@ function Pathfinder::FindPath(iterations) {
     AISign.RemoveSign(sign);
   }
 
-  local ret = this._pathfinder.FindPath(iterations);
-
-  if (!ret) {
-    return null;
-  }
-
-  foreach (goal in this._goals) {
-    if (goal == ret.GetTile()) {
-      return this._pathfinder.Path(ret, goal, 0, this._Cost, this);
-    }
-  }
+  return this._pathfinder.FindPath(iterations);
 }
 
 function Pathfinder::_dir(from, to)

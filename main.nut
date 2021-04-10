@@ -83,7 +83,7 @@ function MGAI::Start()
       }
 
       AILog.Info("There is place for a dock, let's check if it's reachable");
-      local path = this.GetPath(oilRig, refinery);
+      local path = this.GetPathBetweenRefineryAndOilRig(oilRig, refinery);
       if (path == false) {
         AILog.Info("Refinery not reachable by water");
         continue;
@@ -148,16 +148,13 @@ function MGAI::GetAdjacentTiles(tile)
   return adjTiles;
 }
 
-function MGAI::GetPath(oilRig, refinery)
+function MGAI::GetPathBetweenRefineryAndOilRig(oilRig, refinery)
 {
   local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
   local refineryTiles = AITileList_IndustryAccepting(refinery, radius);
 
   refineryTiles.Valuate(AITile.IsWaterTile);
   refineryTiles.KeepValue(1);
-
-  refineryTiles.Valuate(AIMarine.IsCanalTile);
-  refineryTiles.KeepValue(0);
 
   if (refineryTiles.Count() == 0) {
     return false;
@@ -168,17 +165,7 @@ function MGAI::GetPath(oilRig, refinery)
   oilRigTiles.Valuate(AITile.IsWaterTile);
   oilRigTiles.KeepValue(1);
 
-  local sources = [];
-  foreach(idx, value in refineryTiles) {
-    sources.push(idx);
-  }
-
-  local goals = [];
-  foreach(idx, value in oilRigTiles) {
-    goals.push(idx);
-  }
-
-  this.pathfinder.InitializePath(sources, goals);
+  this.pathfinder.InitializePath(this.AIListToArray(refineryTiles), this.AIListToArray(oilRigTiles));
 
   /* Try to find a path. */
   local path = this.pathfinder.FindPath(500);
@@ -267,12 +254,6 @@ function MGAI::buildDock(tiles)
     }
   }
 
-  if( dockTile == false ) {
-    AILog.Info("Dock building failed");
-    return false;
-  }
-
-  AILog.Info("Dock has been build");
   return dockTile;
 }
 
@@ -397,3 +378,10 @@ function MGAI::searchRefineries(oilRig)
   return refineries;
 }
 
+function MGAI::AIListToArray(ailist) {
+  local sources = [];
+  foreach(idx, value in ailist) {
+    sources.push(idx);
+  }
+  return sources;
+}
