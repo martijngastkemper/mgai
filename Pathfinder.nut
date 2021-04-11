@@ -1,4 +1,5 @@
 require("AYStar.nut");
+require("utilities.nut");
 
 class Pathfinder {
 
@@ -6,27 +7,20 @@ class Pathfinder {
   _goals = null;
   _max_cost = null;
   _tile_cost = null;
-  _offsets = null;
 
   constructor() {
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
     this._max_cost = 30000;
     this._tile_cost = 2;
-    local mapsize = AIMap.GetMapSizeX();
-    this._offsets = [
-      -1,
-      mapsize,
-      1,
-      -mapsize,
-    ];
   }
 
   function InitializePath(sources, goals, ignored_tiles = []) {
     local nsources = [];
 
-    foreach (node in sources) {
-      /* tile and direction. direction can't be zero, so let's pick 1 */
-      local path = [node, 1];
+    foreach (tile in sources) {
+      /* tile and direction. direction is to the first goal to have something of a direction */
+      local direction = this.GetDirectionToGoal(this, tile, goals[0]);
+      local path = [tile, direction ? direction : 1];
       nsources.push(path);
     }
     this._goals = goals;
@@ -45,49 +39,27 @@ function Pathfinder::_Cost(self, path, new_tile, new_direction) {
 function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
 
-  local cur_x = AIMap.GetTileX(cur_tile);
-  local cur_y = AIMap.GetTileY(cur_tile);
-
   /* The costs of continuing path */
   local _tile_cost = self._tile_cost;
 
   foreach (goal_tile in goal_tiles) {
-    local dx = AIMap.GetTileX(goal_tile) - cur_x;
-    local dy = AIMap.GetTileY(goal_tile) - cur_y;
+    local goal_direction = self.GetDirectionToGoal(self, cur_tile, goal_tile);
 
-    // If we sumbled upon a actual goal_tile skip the distance logic
     local distance = AIMap.DistanceSquare(cur_tile, goal_tile);
-    if (dx + dy == 0) {
+
+    if (goal_direction == null) {
       min_cost = min(min_cost, distance * _tile_cost);
       continue;
     }
 
-    // Get direction coordinates to goal as if it's the next tile
-    local x = (dx >= -1 && dx <= 1 ) ? dx : (dx / abs(dx));
-    local y = (dy >= -1 && dy <= 1 ) ? dy : (dy / abs(dy));
-
-    local next_x = cur_x;
-    local next_y = cur_y;
-
-    // When the x movement is bigger then y travers on the x axis else on y
-    if (abs(dx) >= abs(dy)) {
-      next_x = cur_x + ((dx >= -1 && dx <= 1 ) ? dx : dx / abs(dx));
-    } else {
-      next_y = cur_y + ((dy >= -1 && dy <= 1 ) ? dy : dy / abs(dy));
-    }
-
-    // Get the direction for the goal
-    local next_tile = AIMap.GetTileIndex(next_x, next_y);
-    local goal_direction  = self._GetDirection(null, cur_tile, next_tile);
-
     /* The direction is not forward */
     if ((cur_direction & goal_direction) == 0) {
-      _tile_cost = self._tile_cost * 4;
+      _tile_cost = self._tile_cost * 3;
     }
 
     /* The direction is backwards */
-    if (self._GetOppositeDirection(cur_direction) == goal_direction) {
-      _tile_cost = self._tile_cost * 8;
+    if (Utilities.GetOppositeDirection(cur_direction) == goal_direction) {
+      _tile_cost = self._tile_cost * 4;
     }
 
     min_cost = min(min_cost, distance * _tile_cost);
@@ -100,7 +72,7 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
 
   if (path.GetCost() >= self._max_cost) return [];
 
-  foreach (offset in self._offsets) {
+  foreach (offset in Utilities.offsets) {
     local next_tile = cur_tile + offset;
 
     /* Only water (includes river and canals) and lock tiles are neighbours */
@@ -155,10 +127,33 @@ function Pathfinder::_GetDirection(pre_from, from, to)
   return result;
 }
 
-function Pathfinder::_GetOppositeDirection(direction)
+
+function Pathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
 {
-  if (direction & 1) return 4;
-  if (direction & 2) return 8;
-  if (direction & 4) return 1;
-  if (direction & 8) return 2;
+  local cur_x = AIMap.GetTileX(cur_tile);
+  local cur_y = AIMap.GetTileY(cur_tile);
+  local dx = AIMap.GetTileX(goal_tile) - cur_x;
+  local dy = AIMap.GetTileY(goal_tile) - cur_y;
+
+  local abs_dx = abs(dx);
+  local abs_dy = abs(dy);
+
+  // If we sumbled upon an actual goal_tile skip the distance logic
+  if (abs_dx + abs_dy == 0) {
+    return null;
+  }
+
+  local next_x = cur_x;
+  local next_y = cur_y;
+
+  // When the x movement is bigger then y travers on the x axis else on y
+  if (abs_dx >= abs_dy) {
+    next_x = cur_x + ((dx >= -1 && dx <= 1 ) ? dx : dx / abs_dx);
+  } else {
+    next_y = cur_y + ((dy >= -1 && dy <= 1 ) ? dy : dy / abs_dy);
+  }
+
+  // Get the direction for the goal
+  local next_tile = AIMap.GetTileIndex(next_x, next_y);
+  return this._GetDirection(null, cur_tile, next_tile);
 }
