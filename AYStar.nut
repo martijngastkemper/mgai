@@ -115,19 +115,19 @@ function AyStar::FindPath(iterations)
 			if ((this._closed.GetValue(cur_tile) & path.GetDirection()) != 0) continue;
 
 			/* Scan the path for a possible collision */
-			local scan_path = path.GetParent();
-
-			local mismatch = false;
-			while (scan_path != null) {
-				if (scan_path.GetTile() == cur_tile) {
-					if (!this._check_direction_callback(this._pf_instance, cur_tile, scan_path.GetDirection(), path.GetDirection())) {
-						mismatch = true;
-						break;
-					}
-				}
-				scan_path = scan_path.GetParent();
-			}
-			if (mismatch) continue;
+//			local scan_path = path.GetParent();
+//
+//			local mismatch = false;
+//			while (scan_path != null) {
+//				if (scan_path.GetTile() == cur_tile) {
+//					if (!this._check_direction_callback(this._pf_instance, cur_tile, scan_path.GetDirection(), path.GetDirection())) {
+//						mismatch = true;
+//						break;
+//					}
+//				}
+//				scan_path = scan_path.GetParent();
+//			}
+//			if (mismatch) continue;
 
 			/* Add the new direction */
 			this._closed.SetValue(cur_tile, this._closed.GetValue(cur_tile) | path.GetDirection());
