@@ -48,13 +48,19 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local cur_x = AIMap.GetTileX(cur_tile);
   local cur_y = AIMap.GetTileY(cur_tile);
 
-  local previous_direction = cur_direction >> 4;
+  /* The costs of continuing path */
+  local _tile_cost = self._tile_cost;
 
   foreach (goal_tile in goal_tiles) {
     local dx = AIMap.GetTileX(goal_tile) - cur_x;
     local dy = AIMap.GetTileY(goal_tile) - cur_y;
-    // If we sumbled upon a actual goal_tile it's for free.
-    if (dx + dy == 0) return 0;
+
+    // If we sumbled upon a actual goal_tile skip the distance logic
+    local distance = AIMap.DistanceSquare(cur_tile, goal_tile);
+    if (dx + dy == 0) {
+      min_cost = min(min_cost, distance * _tile_cost);
+      continue;
+    }
 
     // Get direction coordinates to goal as if it's the next tile
     local x = (dx >= -1 && dx <= 1 ) ? dx : (dx / abs(dx));
@@ -74,20 +80,16 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
     local next_tile = AIMap.GetTileIndex(next_x, next_y);
     local goal_direction  = self._GetDirection(null, cur_tile, next_tile);
 
-    /* The costs of continuing path */
-    local _tile_cost = self._tile_cost;
-
     /* The direction is not forward */
     if ((cur_direction & goal_direction) == 0) {
-      _tile_cost = self._tile_cost * 2;
+      _tile_cost = self._tile_cost * 4;
     }
 
     /* The direction is backwards */
     if (self._GetOppositeDirection(cur_direction) == goal_direction) {
-      _tile_cost = self._tile_cost * 3;
+      _tile_cost = self._tile_cost * 8;
     }
 
-    local distance = AIMap.DistanceSquare(cur_tile, goal_tile);
     min_cost = min(min_cost, distance * _tile_cost);
   }
   return min_cost;
@@ -134,11 +136,11 @@ function Pathfinder::FindPath(iterations) {
 
 function Pathfinder::_dir(from, to)
 {
-  local diff = from - to;
+  local diff = to - from;
   local mapsize = AIMap.GetMapSizeX();
-  if (diff == 1) return 1; // NE
+  if (diff == -1) return 1; // NE
   if (diff == mapsize) return 2; // SE
-  if (diff == -1) return 4; // SW
+  if (diff == 1) return 4; // SW
   if (diff == -mapsize) return 8; // NW
   throw("Shouldn't come here in _dir");
 }
