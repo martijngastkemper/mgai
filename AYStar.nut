@@ -79,15 +79,19 @@ function AyStar::InitializePath(sources, goals, ignored_tiles = []) {
   this._open = this._queue_class();
   this._closed = AIList();
 
+  local char = 1;
+
   foreach (node in sources) {
     if (typeof(node) == "array") {
       if (node[1] <= 0) throw ("directional value should never be zero or negative.");
 
       local new_path = this.Path(null, node[0], node[1], this._cost_callback, this._pf_instance);
+      new_path._char = "" + char;
       this._open.Insert(new_path, new_path.GetCost() + this._estimate_callback(this._pf_instance, node[0], node[1], goals));
     } else {
       this._open.Insert(node, node.GetCost());
     }
+    char += 1;
   }
 
   this._goals = goals;
@@ -104,7 +108,7 @@ function AyStar::FindPath(iterations) {
     /* Get the path with the best score so far */
     local path = this._open.Pop();
     local cur_tile = path.GetTile();
-    AISign.BuildSign(cur_tile, "t");
+    AISign.BuildSign(cur_tile, path.GetChar());
     /* Make sure we didn't already passed it */
     if (this._closed.HasItem(cur_tile)) {
       /* If the direction is already on the list, skip this entry */
@@ -232,5 +236,15 @@ class AyStar.Path {
  */
   function GetLength() {
     return this._length;
+  }
+
+  function GetStartPath() {
+    local parentPath = this;
+    local result = null;
+    while (parentPath != null) {
+      result = parentPath;
+      parentPath = parentPath.GetParent();
+    }
+    return result;
   }
 };
