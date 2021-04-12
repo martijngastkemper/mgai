@@ -3,7 +3,6 @@
  *  It solves graphs by finding the fastest route from one point to the other.
  */
 class AyStar {
-  _queue_class = import("queue.binary_heap", "", 1);
   _pf_instance = null;
   _cost_callback = null;
   _estimate_callback = null;
@@ -76,7 +75,7 @@ function AyStar::InitializePath(sources, goals, ignored_tiles = []) {
   if (typeof(sources) != "array" || sources.len() == 0) throw ("sources has be a non-empty array.");
   if (typeof(goals) != "array" || goals.len() == 0) throw ("goals has be a non-empty array.");
 
-  this._open = this._queue_class();
+  this._open =  AIPriorityQueue();
   this._closed = AIList();
 
   local char = 1;
@@ -86,7 +85,7 @@ function AyStar::InitializePath(sources, goals, ignored_tiles = []) {
       if (node[1] <= 0) throw ("directional value should never be zero or negative.");
 
       local new_path = this.Path(null, node[0], node[1], this._cost_callback, this._pf_instance);
-      new_path._char = "" + char;
+      new_path.SetChar(char);
       this._open.Insert(new_path, new_path.GetCost() + this._estimate_callback(this._pf_instance, node[0], node[1], goals));
     } else {
       this._open.Insert(node, node.GetCost());
@@ -190,6 +189,7 @@ class AyStar.Path {
   _direction = null;
   _cost = null;
   _length = null;
+  _char = null;
 
   constructor(old_path, new_tile, new_direction, cost_callback, pf_instance) {
     this._prev = old_path;
@@ -200,6 +200,7 @@ class AyStar.Path {
       this._length = 0;
     } else {
       this._length = old_path.GetLength() + AIMap.DistanceManhattan(old_path.GetTile(), new_tile);
+      this._char = old_path.GetChar();
     }
   };
 
@@ -224,6 +225,9 @@ class AyStar.Path {
     return this._prev;
   }
 
+  function GetChar() {
+    return this._char;
+  }
 /**
  * Return the cost of this (partial-)path from the beginning up to this node.
  */
@@ -246,5 +250,9 @@ class AyStar.Path {
       parentPath = parentPath.GetParent();
     }
     return result;
+  }
+
+  function SetChar(char) {
+    this._char = "" + char;
   }
 };
