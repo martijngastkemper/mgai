@@ -234,7 +234,7 @@ function MGAI::buildDock(tile)
   local costs = AIMarine.GetBuildCost(AIMarine.BT_DOCK);
   this.fixMoney(costs);
 
-  local build = AIMarine.BuildDock(tile, AIStation.STATION_NEW);
+  local build = AIMarine.BuildDock(tile, AIStation.STATION_JOIN_ADJACENT);
   return build ? tile : null;
 }
 
