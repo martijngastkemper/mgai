@@ -335,8 +335,13 @@ function MGAI::pickOilRig()
 
   oilrigs.Valuate(AIIndustry.GetLastMonthTransported, this.oilCargoId);
   oilrigs.KeepValue(0);
+
   oilrigs.Valuate(AIIndustry.HasDock);
   oilrigs.KeepValue(1);
+
+  // Put the oilrig with the highest production at the beginning so we start with connecting the most valuable oilrig.
+  oilrigs.Valuate(AIIndustry.GetLastMonthProduction, this.oilCargoId);
+  oilrigs.Sort(AIList.SORT_BY_VALUE, false);
 
   if (oilrigs.Count() == 0) {
     return false;
