@@ -3,15 +3,11 @@ require("utilities.nut");
 
 class Pathfinder {
 
-  _pathfinder = null;
-  _goals = null;
-  _max_cost = null;
-  _tile_cost = null;
-
   constructor() {
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
-    this._max_cost = 30000;
-    this._tile_cost = 2;
+    this._max_cost = 10000000;
+    this._cost_tile = 100;
+    this._cost_turn = 150;
   }
 
   function InitializePath(sources, goals, ignored_tiles = []) {
@@ -28,19 +24,34 @@ class Pathfinder {
   }
 
   function FindPath(iterations);
+
+  _pathfinder = null;
+  _goals = null;
+  _max_cost = null;
+  _cost_tile = null;
+  _cost_turn = null;
+
 }
 
 function Pathfinder::_Cost(self, path, new_tile, new_direction) {
   if (path == null) return 0;
 
-  return path.GetCost() + self._tile_cost;
+  local prev_tile = path.GetTile();
+
+  local cost = self._cost_tile;
+
+  if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
+    cost += self._cost_turn;
+  }
+
+  return path.GetCost() + cost;
 }
 
 function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
 
   /* The costs of continuing path */
-  local _tile_cost = self._tile_cost;
+  local _cost_tile = self._cost_tile;
 
   foreach (goal_tile in goal_tiles) {
     local goal_direction = self.GetDirectionToGoal(self, cur_tile, goal_tile);
@@ -48,21 +59,21 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
     local distance = AIMap.DistanceSquare(cur_tile, goal_tile);
 
     if (goal_direction == null) {
-      min_cost = min(min_cost, distance * _tile_cost);
+      min_cost = min(min_cost, distance * self._cost_tile);
       continue;
     }
 
     /* The direction is not forward */
     if ((cur_direction & goal_direction) == 0) {
-      _tile_cost = self._tile_cost * 3;
+      _cost_tile = self._cost_tile * 3;
     }
 
     /* The direction is backwards */
     if (Utilities.GetOppositeDirection(cur_direction) == goal_direction) {
-      _tile_cost = self._tile_cost * 4;
+      _cost_tile = self._cost_tile * 4;
     }
 
-    min_cost = min(min_cost, distance * _tile_cost);
+    min_cost = min(min_cost, distance * _cost_tile);
   }
   return min_cost;
 }
@@ -85,11 +96,7 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
     local connected = AIMarine.AreWaterTilesConnected(cur_tile, next_tile);
     if (!connected) continue;
 
-    if (path.GetParent() == null) {
-      tiles.push([next_tile, self._GetDirection(null, cur_tile, next_tile)]);
-    } else {
-      tiles.push([next_tile, self._GetDirection(path.GetParent().GetTile(), cur_tile, next_tile)]);
-    }
+    tiles.push([next_tile, self._dir(cur_tile, next_tile)]);
   }
   return tiles;
 }
@@ -106,6 +113,9 @@ function Pathfinder::FindPath(iterations) {
   return this._pathfinder.FindPath(iterations);
 }
 
+/**
+ * Get the direction between two points.
+ */
 function Pathfinder::_dir(from, to)
 {
   local diff = to - from;
@@ -116,17 +126,6 @@ function Pathfinder::_dir(from, to)
   if (diff == -mapsize) return 8; // NW
   throw("Shouldn't come here in _dir");
 }
-
-/**
- * Get the direction between two or three points. The first 4 bytes contain the direction from => to. The second 4
- * bytes contain the direction pre_from => from.
- */
-function Pathfinder::_GetDirection(pre_from, from, to)
-{
-  local result = this._dir(from,to) | (pre_from == null ? 0 : (this._dir(pre_from, from) << 4));
-  return result;
-}
-
 
 function Pathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
 {
@@ -155,5 +154,5 @@ function Pathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
 
   // Get the direction for the goal
   local next_tile = AIMap.GetTileIndex(next_x, next_y);
-  return this._GetDirection(null, cur_tile, next_tile);
+  return this._dir(cur_tile, next_tile);
 }
