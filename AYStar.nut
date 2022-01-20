@@ -107,7 +107,6 @@ function AyStar::FindPath(iterations) {
     /* Get the path with the best score so far */
     local path = this._open.Pop();
     local cur_tile = path.GetTile();
-    AISign.BuildSign(cur_tile, path.GetChar());
     /* Make sure we didn't already passed it */
     if (this._closed.HasItem(cur_tile)) {
       /* If the direction is already on the list, skip this entry */

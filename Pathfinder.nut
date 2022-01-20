@@ -1,7 +1,7 @@
 require("AYStar.nut");
 require("utilities.nut");
 
-class Pathfinder {
+class ShipPathfinder {
 
   constructor() {
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
@@ -33,7 +33,7 @@ class Pathfinder {
 
 }
 
-function Pathfinder::_Cost(self, path, new_tile, new_direction) {
+function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
   if (path == null) return 0;
 
   local prev_tile = path.GetTile();
@@ -47,7 +47,7 @@ function Pathfinder::_Cost(self, path, new_tile, new_direction) {
   return path.GetCost() + cost;
 }
 
-function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
+function ShipPathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
 
   /* The costs of continuing path */
@@ -78,7 +78,7 @@ function Pathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   return min_cost;
 }
 
-function Pathfinder::_Neighbours(self, path, cur_tile) {
+function ShipPathfinder::_Neighbours(self, path, cur_tile) {
   local tiles = [];
 
   if (path.GetCost() >= self._max_cost) return [];
@@ -86,37 +86,33 @@ function Pathfinder::_Neighbours(self, path, cur_tile) {
   foreach (offset in Utilities.offsets) {
     local next_tile = cur_tile + offset;
 
-    /* Only water (includes river and canals) and lock tiles are neighbours */
-    if (!AITile.IsWaterTile(next_tile) && !AIMarine.IsLockTile(next_tile)) continue;
-
     /* Don't turn back */
     if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
 
-    /* Check for water connection because of sea to river tiles */
-    local connected = AIMarine.AreWaterTilesConnected(cur_tile, next_tile);
-    if (!connected) continue;
+    local validSlope = function (tile) {
+      local slope = AITile.GetSlope(tile);
+      return slope == AITile.SLOPE_NW || slope == AITile.SLOPE_SW || slope == AITile.SLOPE_SE || slope == AITile.SLOPE_NE;
+    }
+
+    if (!AITile.IsWaterTile(next_tile) && !validSlope(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
 
     tiles.push([next_tile, self._dir(cur_tile, next_tile)]);
   }
   return tiles;
 }
 
-function Pathfinder::_CheckDirection(self, tile, existing_direction, new_direction) {
+function ShipPathfinder::_CheckDirection(self, tile, existing_direction, new_direction) {
   return false;
 }
 
-function Pathfinder::FindPath(iterations) {
-  foreach(sign, value in AISignList()) {
-    AISign.RemoveSign(sign);
-  }
-
+function ShipPathfinder::FindPath(iterations) {
   return this._pathfinder.FindPath(iterations);
 }
 
 /**
  * Get the direction between two points.
  */
-function Pathfinder::_dir(from, to)
+function ShipPathfinder::_dir(from, to)
 {
   local diff = to - from;
   local mapsize = AIMap.GetMapSizeX();
@@ -127,7 +123,7 @@ function Pathfinder::_dir(from, to)
   throw("Shouldn't come here in _dir");
 }
 
-function Pathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
+function ShipPathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
 {
   local cur_x = AIMap.GetTileX(cur_tile);
   local cur_y = AIMap.GetTileY(cur_tile);

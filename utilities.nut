@@ -22,3 +22,8 @@ function Utilities::AIListToArray(ailist) {
   }
   return sources;
 }
+
+function Utilities::PrintTile(tile) {
+  if (typeof tile != "integer") return "invalid tile";
+  return AIMap.GetTileX(tile) + "x" + AIMap.GetTileY(tile);
+}
