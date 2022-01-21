@@ -343,10 +343,20 @@ function MGAI::PollForAOilRig()
 function MGAI::FindNearbyRefineries(oilRig)
 {
   local refineries = AIIndustryList_CargoAccepting(oilCargoId);
+
+  local HasWaterNearby = function (refinery) {
+    local radius = AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
+    local tiles = AITileList_IndustryAccepting(refinery, radius);
+    tiles.Valuate(AITile.IsWaterTile);
+    tiles.KeepValue(1);
+    return !tiles.IsEmpty();
+  }
+  refineries.Valuate(HasWaterNearby);
+  refineries.KeepValue(1);
+
   local GetDistance = function (refinery, oilRig) {
     return AIMap.DistanceManhattan(AIIndustry.GetLocation(oilRig), AIIndustry.GetLocation(refinery));
   }
-
   refineries.Valuate(GetDistance, oilRig);
   refineries.KeepBelowValue(150);
 
