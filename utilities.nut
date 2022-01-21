@@ -27,3 +27,8 @@ function Utilities::PrintTile(tile) {
   if (typeof tile != "integer") return "invalid tile";
   return AIMap.GetTileX(tile) + "x" + AIMap.GetTileY(tile);
 }
+
+function  Utilities::IsValidSlope(tile) {
+ local slope = AITile.GetSlope(tile);
+ return slope == AITile.SLOPE_NW || slope == AITile.SLOPE_SW || slope == AITile.SLOPE_SE || slope == AITile.SLOPE_NE;
+}

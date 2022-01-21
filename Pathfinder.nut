@@ -6,6 +6,8 @@ class ShipPathfinder {
   constructor() {
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
     this._max_cost = 10000000;
+    // Will be added to _cost_tile
+    this._cost_lock = 45
     this._cost_tile = 100;
     this._cost_turn = 150;
   }
@@ -28,6 +30,7 @@ class ShipPathfinder {
   _pathfinder = null;
   _goals = null;
   _max_cost = null;
+  _cost_lock = null;
   _cost_tile = null;
   _cost_turn = null;
 
@@ -42,6 +45,12 @@ function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
 
   if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
     cost += self._cost_turn;
+  }
+
+  if (Utilities.IsValidSlope(new_tile)) {
+    if (!AIMarine.IsLockTile(new_tile)) {
+      cost += self._cost_lock
+    }
   }
 
   return path.GetCost() + cost;
@@ -89,12 +98,11 @@ function ShipPathfinder::_Neighbours(self, path, cur_tile) {
     /* Don't turn back */
     if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
 
-    local validSlope = function (tile) {
-      local slope = AITile.GetSlope(tile);
-      return slope == AITile.SLOPE_NW || slope == AITile.SLOPE_SW || slope == AITile.SLOPE_SE || slope == AITile.SLOPE_NE;
-    }
 
-    if (!AITile.IsWaterTile(next_tile) && !validSlope(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
+    // Skip going from land tile to land tile
+    if (Utilities.IsValidSlope(cur_tile) && Utilities.IsValidSlope(next_tile)) continue;
+
+    if (!AITile.IsWaterTile(next_tile) && !Utilities.IsValidSlope(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
 
     tiles.push([next_tile, self._dir(cur_tile, next_tile)]);
   }

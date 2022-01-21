@@ -68,6 +68,8 @@ function MGAI::Start()
 
     if (AIError.GetLastError() != AIError.ERR_NOT_ENOUGH_CASH) {
       this.failedOilRigs.append(oilRig);
+    } else {
+      this.Sleep(50);
     }
   }
 }
@@ -82,7 +84,8 @@ function MGAI::BuildRoute(oilRig) {
     return false;
   }
 
-  local finalDockTile = null;
+  local path = null;
+  local costs = null;
 
   foreach(refinery, value in nearbyRefineries) {
     AILog.Info("Check nearby refinery: " + AIIndustry.GetName(refinery));
@@ -93,31 +96,82 @@ function MGAI::BuildRoute(oilRig) {
       continue;
     }
 
-    local path = this.GetPathBetweenRefineryAndOilRig(oilRig, dockTiles);
+    path = this.GetPathBetweenRefineryAndOilRig(oilRig, dockTiles);
     if (path == false) {
       AILog.Info("No ship path between oilrig and refinery.");
       continue;
     }
 
-    finalDockTile = path.GetTile();
+    local accounting = AIAccounting();
+    local test = AITestMode();
+    if (!this.BuildPath(path, test)) {
+      AILog.Info("Path between oilrig and refinery can't be build.");
+      continue;
+    };
 
-    this.BuildDock(finalDockTile);
-
+    costs = accounting.GetCosts();
+    AILog.Info(costs);
     break;
   }
 
-  if (finalDockTile == null) return false;
+  if (!path) return false;
+
+  local accounting = AIAccounting();
+  if (!this.BuildDepot(oilRig, AITestMode())) return false;
+  costs += accounting.GetCosts();
+
+  if (!this.FixMoney(costs)) return false;
+
+  if (!this.BuildPath(path)) return false;
 
   local depotTile = this.BuildDepot(oilRig);
   if(depotTile == false) return false;
 
+  if (!this.FixMoney(20000)) return false;
+
   return this.BuildShip(
     AIIndustry.GetDockLocation(oilRig),
-    finalDockTile,
+    path.GetTile(),
     depotTile
   );
 }
 
+function MGAI::BuildPath(path, test = null) {
+  if (test) {
+    AILog.Info("Test building path, starting at " + Utilities.PrintTile(path.GetTile()));
+  } else {
+    AILog.Info("Build path, starting at " + Utilities.PrintTile(path.GetTile()));
+  }
+  local firstIteration = true;
+
+  while (path != null) {
+    local par = path.GetParent();
+    if (par != null) {
+      local last_node = path.GetTile();
+
+      if (firstIteration) {
+        AILog.Info("Build a dock");
+        if (!this.BuildDock(last_node)) {
+           AILog.Info("Building failed");
+           if (AIError.GetLastError() != AIError.ERR_ALREADY_BUILT) {
+             return false;
+           }
+        }
+      } else if (Utilities.IsValidSlope(last_node) && !AIMarine.IsLockTile(last_node)) {
+        AILog.Info("Build a lock");
+        if (!AIMarine.BuildLock(last_node)) {
+          AILog.Info("Building failed");
+          if (AIError.GetLastError() != AIError.ERR_ALREADY_BUILT) {
+            return false;
+          }
+        }
+      }
+    }
+    path = par;
+    firstIteration = false;
+  }
+  return true;
+}
 
 function MGAI::PollEvents()
 {
@@ -188,14 +242,16 @@ function MGAI::BuildDock(tile)
   if (AIMarine.IsDockTile(tile)) {
     return true;
   }
-  local costs = AIMarine.GetBuildCost(AIMarine.BT_DOCK);
-  this.fixMoney(costs);
 
   return AIMarine.BuildDock(tile, AIStation.STATION_JOIN_ADJACENT);
 }
 
-function MGAI::BuildDepot(oilRig) {
-  AILog.Info("Let's build a depot near " + AIIndustry.GetName(oilRig));
+function MGAI::BuildDepot(oilRig, test = null) {
+  if (test) {
+    AILog.Info("Let's find a place for a depot near " + AIIndustry.GetName(oilRig));
+  } else {
+    AILog.Info("Let's build a depot near " + AIIndustry.GetName(oilRig));
+  }
 
   local tiles = AITileList_IndustryProducing(oilRig, 3);
 
@@ -207,9 +263,6 @@ function MGAI::BuildDepot(oilRig) {
       return tile;
     }
   }
-
-  local costs = AIMarine.GetBuildCost(AIMarine.BT_DEPOT);
-  this.fixMoney(costs);
 
   foreach(tile, value in tiles) {
     foreach(frontTile, value in this.GetAdjacentTiles(tile)) {
@@ -234,7 +287,7 @@ function MGAI::BuildShip(source, destination, depot)
 
   local engine = engines.Begin();
 
-  this.fixMoney(AIEngine.GetPrice(engine));
+  this.FixMoney(AIEngine.GetPrice(engine));
 
   local ship = AIVehicle.BuildVehicle(depot, engine);
 
@@ -247,15 +300,17 @@ function MGAI::BuildShip(source, destination, depot)
   return true;
 }
 
-function MGAI::fixMoney(money)
+function MGAI::FixMoney(money)
 {
   local balance = AICompany.GetBankBalance(AICompany.COMPANY_SELF);
   local loan = AICompany.GetLoanAmount();
 
   /* Take a loan when balance is to low */
   if (balance < money) {
-    AICompany.SetMinimumLoanAmount(loan + money);
+    return AICompany.SetMinimumLoanAmount(min(loan + money, AICompany.GetMaxLoanAmount()));
   }
+
+  return true;
 }
 
 function MGAI::PollForAOilRig()
