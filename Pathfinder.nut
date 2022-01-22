@@ -1,15 +1,19 @@
-require("AYStar.nut");
 require("utilities.nut");
 
 class ShipPathfinder {
 
   constructor() {
+    local AyStar = import("graph.aystar", "", 6);
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
     this._max_cost = 10000000;
-    // Will be added to _cost_tile
-    this._cost_lock = 45
+
     this._cost_tile = 100;
-    this._cost_turn = 150;
+
+    // Will be added to _cost_tile
+    this._cost_coast = -100;
+    this._cost_lock = 45;
+    this._cost_turn = 10;
+
   }
 
   function InitializePath(sources, goals, ignored_tiles = []) {
@@ -30,6 +34,7 @@ class ShipPathfinder {
   _pathfinder = null;
   _goals = null;
   _max_cost = null;
+  _cost_coast = null;
   _cost_lock = null;
   _cost_tile = null;
   _cost_turn = null;
@@ -38,52 +43,43 @@ class ShipPathfinder {
 
 function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
   if (path == null) return 0;
+  AILog.Info(Utilities.PrintTile(new_tile));
 
   local prev_tile = path.GetTile();
 
   local cost = self._cost_tile;
 
-  if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
-    cost += self._cost_turn;
-  }
-
-  if (Utilities.IsValidSlope(new_tile)) {
-    if (!AIMarine.IsLockTile(new_tile)) {
-      cost += self._cost_lock
+//  if (!AITile.IsCoastTile(new_tile)) {
+    if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
+      cost += self._cost_turn;
     }
-  }
+//  }
 
+//  if (AITile.IsCoastTile(new_tile)) {
+//    cost += self._cost_coast;
+//  }
+
+//  if (Utilities.IsValidSlope(new_tile) && AITile.IsWaterTile(new_tile)) {
+//    if (!AIMarine.IsLockTile(new_tile)) {
+//      cost += self._cost_lock
+//    }
+//  }
+
+  AILog.Info(cost);
+  AILog.Info(path.GetCost());
   return path.GetCost() + cost;
 }
 
 function ShipPathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
-
-  /* The costs of continuing path */
-  local _cost_tile = self._cost_tile;
-
-  foreach (goal_tile in goal_tiles) {
-    local goal_direction = self.GetDirectionToGoal(self, cur_tile, goal_tile);
-
-    local distance = AIMap.DistanceSquare(cur_tile, goal_tile);
-
-    if (goal_direction == null) {
-      min_cost = min(min_cost, distance * self._cost_tile);
-      continue;
-    }
-
-    /* The direction is not forward */
-    if ((cur_direction & goal_direction) == 0) {
-      _cost_tile = self._cost_tile * 3;
-    }
-
-    /* The direction is backwards */
-    if (Utilities.GetOppositeDirection(cur_direction) == goal_direction) {
-      _cost_tile = self._cost_tile * 4;
-    }
-
-    min_cost = min(min_cost, distance * _cost_tile);
+  local coast_correction = 0;
+//  if (AITile.IsCoastTile(cur_tile)) coast_correction = 1;
+  /* As estimate we multiply the lowest possible cost for a single tile with
+	 * with the minimum number of tiles we need to traverse. */
+  foreach (tile in goal_tiles) {
+    min_cost = min((AIMap.DistanceManhattan(cur_tile, tile) - coast_correction) * self._cost_tile, min_cost);
   }
+  AISign.BuildSign(cur_tile, "" + min_cost);
   return min_cost;
 }
 
@@ -98,11 +94,11 @@ function ShipPathfinder::_Neighbours(self, path, cur_tile) {
     /* Don't turn back */
     if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
 
-
     // Skip going from land tile to land tile
-    if (Utilities.IsValidSlope(cur_tile) && Utilities.IsValidSlope(next_tile)) continue;
+//    if (Utilities.IsValidSlope(cur_tile) && Utilities.IsValidSlope(next_tile)) continue;
 
-    if (!AITile.IsWaterTile(next_tile) && !Utilities.IsValidSlope(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
+    // Water, valid slopes and dock tiles can be neighbours
+    if (!AITile.IsWaterTile(next_tile) && !AITile.IsCoastTile(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
 
     tiles.push([next_tile, self._dir(cur_tile, next_tile)]);
   }
