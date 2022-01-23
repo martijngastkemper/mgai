@@ -119,7 +119,7 @@ function ShipPathfinder::GetOtherRiverEnd(cur_tile, prev_tile) {
       /* Don't turn back */
       if (next_tile == prev_tile) continue;
 
-      if (this.IsRiverPart(next_tile)) {
+      if (this.IsRiverPart(next_tile) && AIMarine.AreWaterTilesConnected(cur_tile, next_tile)) {
         nextTiles.append([next_tile, this.GetDirection(cur_tile, next_tile, false)]);
       }
     }
