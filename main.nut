@@ -86,6 +86,7 @@ function MGAI::BuildRoute(oilRig) {
 
   local path = null;
   local costs = null;
+  local goals = AIList();
 
   foreach(refinery, value in nearbyRefineries) {
     AILog.Info("Check nearby refinery: " + AIIndustry.GetName(refinery));
@@ -96,29 +97,28 @@ function MGAI::BuildRoute(oilRig) {
       continue;
     }
 
-    path = this.GetPathBetweenRefineryAndOilRig(oilRig, dockTiles);
-    if (path == false) {
-      AILog.Info("No ship path between oilrig and refinery.");
-      continue;
-    }
-
-    local accounting = AIAccounting();
-    local test = AITestMode();
-    if (!this.BuildPath(path, test)) {
-      AILog.Info("Path between oilrig and refinery can't be build.");
-      continue;
-    };
-
-    costs = accounting.GetCosts();
-    AILog.Info(costs);
-    break;
+    goals.AddList(dockTiles);
   }
 
-  if (!path) return false;
+  path = this.GetPathBetweenRefineryAndOilRig(oilRig, goals);
+  if (!path) {
+    AILog.Info("No ship path between oilrig and one of the refineries.");
+    return false;
+  }
 
   local accounting = AIAccounting();
-  if (!this.BuildDepot(oilRig, AITestMode())) return false;
-  costs += accounting.GetCosts();
+  local test = AITestMode();
+
+  if (!this.BuildPath(path, test)) {
+    AILog.Info("Path between oilrig and refinery can't be build.");
+    return false;
+  };
+
+  if (!this.BuildDepot(oilRig, test)) return false;
+
+  costs = accounting.GetCosts();
+  test = null;
+  AILog.Info(costs);
 
   if (!this.FixMoney(costs)) return false;
 
@@ -203,9 +203,7 @@ function MGAI::GetAdjacentTiles(tile)
 
 function MGAI::GetPathBetweenRefineryAndOilRig(oilRig, refineryDockableTiles)
 {
-  local oilRigTiles = AITileList_IndustryProducing(oilRig, 1);
-
-  this.pathfinder.InitializePath(Utilities.AIListToArray(oilRigTiles), Utilities.AIListToArray(refineryDockableTiles));
+  this.pathfinder.InitializePath([AIIndustry.GetDockLocation(oilRig)], Utilities.AIListToArray(refineryDockableTiles));
 
   local path = this.pathfinder.FindPath(500);
 
