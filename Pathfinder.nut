@@ -92,7 +92,7 @@ function ShipPathfinder::_Neighbours(self, path, cur_tile) {
     // - River parts, a river can split, so handle the path finder must follow the new rivers
     // - A goal could be a coast tile, so not covered by the other checks
     if (AITile.IsSeaTile(next_tile) || self.IsRiverPart(next_tile) || self.IsGoal(next_tile)) {
-      tiles.push([next_tile, self.GetDirection(cur_tile, next_tile, false)]);
+      tiles.push([next_tile, self.GetDirection(cur_tile, next_tile)]);
     }
   }
   return tiles;
@@ -121,7 +121,7 @@ function ShipPathfinder::GetOtherRiverEnd(cur_tile, prev_tile) {
       if (next_tile == prev_tile) continue;
 
       if (this.IsRiverPart(next_tile) && AIMarine.AreWaterTilesConnected(cur_tile, next_tile)) {
-        nextTiles.append([next_tile, this.GetDirection(cur_tile, next_tile, false)]);
+        nextTiles.append([next_tile, this.GetDirection(cur_tile, next_tile)]);
       }
     }
 
@@ -132,7 +132,7 @@ function ShipPathfinder::GetOtherRiverEnd(cur_tile, prev_tile) {
     } else {
       // Rivers must be at least 2 tiles long
       if (length == 1) return false;
-      return [cur_tile, this.GetDirection(prev_tile, cur_tile, false)];
+      return [cur_tile, this.GetDirection(prev_tile, cur_tile)];
     }
   };
 
@@ -151,9 +151,8 @@ function ShipPathfinder::FindPath(iterations) {
   return this._pathfinder.FindPath(iterations);
 }
 
-function ShipPathfinder::GetDirection(from, to, is_river)
+function ShipPathfinder::GetDirection(from, to)
 {
-  if (!is_river && AITile.IsWaterTile(to)) return 0xFF;
   if (from - to == 1) return 1;
   if (from - to == -1) return 2;
   if (from - to == AIMap.GetMapSizeX()) return 4;
