@@ -148,6 +148,7 @@ function MGAI::BuildPath(path, test = null) {
     local par = path.GetParent();
     if (par != null) {
       local last_node = path.GetTile();
+      local next_node = path.GetParent().GetTile();
 
       if (firstIteration) {
         AILog.Info("Build a dock");
@@ -157,7 +158,7 @@ function MGAI::BuildPath(path, test = null) {
              return false;
            }
         }
-      } else if (Utilities.IsValidSlope(last_node) && !AIMarine.IsLockTile(last_node)) {
+      } else if (Utilities.IsValidSlope(last_node) && AITile.IsWaterTile(next_node) && !AIMarine.IsLockTile(last_node)) {
         AILog.Info("Build a lock");
         if (!AIMarine.BuildLock(last_node)) {
           AILog.Info("Building failed");
