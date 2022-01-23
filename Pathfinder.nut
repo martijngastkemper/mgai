@@ -58,17 +58,17 @@ function ShipPathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
   /* As estimate we multiply the lowest possible cost for a single tile with
 	 * with the minimum number of tiles we need to traverse. */
-  foreach (tile in goal_tiles) {
-    min_cost = min(AIMap.DistanceManhattan(cur_tile, tile) * self._cost_tile, min_cost);
+  foreach (goal_tile in goal_tiles) {
+    min_cost = min(AIMap.DistanceManhattan(cur_tile, goal_tile) * self._cost_tile, min_cost);
   }
   return min_cost;
 }
 
 function ShipPathfinder::_Neighbours(self, path, cur_tile) {
-  local tiles = [];
-  AISign.BuildSign(cur_tile, "x");
-
   if (path.GetCost() >= self._max_cost) return [];
+
+  local tiles = [];
+  AISign.BuildSign(cur_tile, "y");
 
   if (self.IsRiverPart(cur_tile)) {
     local riverEnd = self.GetOtherRiverEnd(cur_tile, path.GetParent().GetTile());
