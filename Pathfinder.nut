@@ -10,9 +10,7 @@ class ShipPathfinder {
     this._cost_tile = 100;
 
     // Will be added to _cost_tile
-    this._cost_coast = -100;
-    this._cost_lock = 45;
-    this._cost_turn = 10;
+    this._cost_turn = 150;
 
   }
 
@@ -20,9 +18,7 @@ class ShipPathfinder {
     local nsources = [];
 
     foreach (tile in sources) {
-      /* tile and direction. direction is to the first goal to have something of a direction */
-      local direction = this.GetDirectionToGoal(this, tile, goals[0]);
-      local path = [tile, direction ? direction : 1];
+      local path = [tile, 0xFF];
       nsources.push(path);
     }
     this._goals = goals;
@@ -34,8 +30,6 @@ class ShipPathfinder {
   _pathfinder = null;
   _goals = null;
   _max_cost = null;
-  _cost_coast = null;
-  _cost_lock = null;
   _cost_tile = null;
   _cost_turn = null;
 
@@ -43,50 +37,48 @@ class ShipPathfinder {
 
 function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
   if (path == null) return 0;
-  AILog.Info(Utilities.PrintTile(new_tile));
 
   local prev_tile = path.GetTile();
 
   local cost = self._cost_tile;
 
-//  if (!AITile.IsCoastTile(new_tile)) {
-    if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
-      cost += self._cost_turn;
-    }
-//  }
+  local distance = AIMap.DistanceManhattan(new_tile, prev_tile);
+  if (distance > 1) {
+    return path.GetCost();
+  }
 
-//  if (AITile.IsCoastTile(new_tile)) {
-//    cost += self._cost_coast;
-//  }
+  if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
+    cost += self._cost_turn;
+  }
 
-//  if (Utilities.IsValidSlope(new_tile) && AITile.IsWaterTile(new_tile)) {
-//    if (!AIMarine.IsLockTile(new_tile)) {
-//      cost += self._cost_lock
-//    }
-//  }
-
-  AILog.Info(cost);
-  AILog.Info(path.GetCost());
   return path.GetCost() + cost;
 }
 
 function ShipPathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   local min_cost = self._max_cost;
-  local coast_correction = 0;
-//  if (AITile.IsCoastTile(cur_tile)) coast_correction = 1;
   /* As estimate we multiply the lowest possible cost for a single tile with
 	 * with the minimum number of tiles we need to traverse. */
   foreach (tile in goal_tiles) {
-    min_cost = min((AIMap.DistanceManhattan(cur_tile, tile) - coast_correction) * self._cost_tile, min_cost);
+    min_cost = min(AIMap.DistanceManhattan(cur_tile, tile) * self._cost_tile, min_cost);
   }
-  AISign.BuildSign(cur_tile, "" + min_cost);
   return min_cost;
 }
 
 function ShipPathfinder::_Neighbours(self, path, cur_tile) {
   local tiles = [];
+  AISign.BuildSign(cur_tile, "x");
 
   if (path.GetCost() >= self._max_cost) return [];
+
+  if (self.IsRiverPart(cur_tile)) {
+    local riverEnd = self.GetOtherRiverEnd(cur_tile, path.GetParent().GetTile());
+
+    if (riverEnd) {
+      AILog.Info("Start of river: " + Utilities.PrintTile(cur_tile));
+      AILog.Info("End of river: " + Utilities.PrintTile(riverEnd[0]));
+      tiles.push(riverEnd)
+    }
+  }
 
   foreach (offset in Utilities.offsets) {
     local next_tile = cur_tile + offset;
@@ -94,15 +86,60 @@ function ShipPathfinder::_Neighbours(self, path, cur_tile) {
     /* Don't turn back */
     if (path.GetParent() != null && next_tile == path.GetParent().GetTile()) continue;
 
-    // Skip going from land tile to land tile
-//    if (Utilities.IsValidSlope(cur_tile) && Utilities.IsValidSlope(next_tile)) continue;
-
-    // Water, valid slopes and dock tiles can be neighbours
-    if (!AITile.IsWaterTile(next_tile) && !AITile.IsCoastTile(next_tile) && !AIMarine.IsDockTile(next_tile)) continue;
-
-    tiles.push([next_tile, self._dir(cur_tile, next_tile)]);
+    // Sea (rivers and canels are handle before), valid slopes and dock tiles can be neighbours
+    // - Sea is a neighbour, canals and rivers are handle before
+    // - River parts, a river can split, so handle the path finder must follow the new rivers
+    // - A goal could be a coast tile, so not covered by the other checks
+    if (AITile.IsSeaTile(next_tile) || self.IsRiverPart(next_tile) || self.IsGoal(next_tile)) {
+      tiles.push([next_tile, self.GetDirection(cur_tile, next_tile, false)]);
+    }
   }
   return tiles;
+}
+
+function ShipPathfinder::IsGoal(next_tile) {
+  foreach (goal in this._goals) {
+    if (goal == next_tile) {
+      return true;
+    }
+  }
+}
+
+// Look for the end of a river. That could be the sea, a split or land
+function ShipPathfinder::GetOtherRiverEnd(cur_tile, prev_tile) {
+  local length = 0;
+  local nextTiles = null;
+  while (this.IsRiverPart(cur_tile)){
+    nextTiles = [];
+    length += 1;
+
+    foreach (offset in Utilities.offsets) {
+      local next_tile = cur_tile + offset;
+
+      /* Don't turn back */
+      if (next_tile == prev_tile) continue;
+
+      if (this.IsRiverPart(next_tile)) {
+        nextTiles.append([next_tile, this.GetDirection(cur_tile, next_tile, false)]);
+      }
+    }
+
+    // We found one next river, so it's straight, continue search
+    if (nextTiles.len() == 1) {
+      prev_tile = cur_tile;
+      cur_tile = nextTiles.pop()[0];
+    } else {
+      // Rivers must be at least 2 tiles long
+      if (length == 1) return false;
+      return [cur_tile, this.GetDirection(prev_tile, cur_tile, false)];
+    }
+  };
+
+  return false;
+}
+
+function ShipPathfinder::IsRiverPart(tile) {
+  return AIMarine.IsCanalTile(tile) || AITile.IsRiverTile(tile) || AIMarine.IsLockTile(tile);
 }
 
 function ShipPathfinder::_CheckDirection(self, tile, existing_direction, new_direction) {
@@ -113,46 +150,11 @@ function ShipPathfinder::FindPath(iterations) {
   return this._pathfinder.FindPath(iterations);
 }
 
-/**
- * Get the direction between two points.
- */
-function ShipPathfinder::_dir(from, to)
+function ShipPathfinder::GetDirection(from, to, is_river)
 {
-  local diff = to - from;
-  local mapsize = AIMap.GetMapSizeX();
-  if (diff == -1) return 1; // NE
-  if (diff == mapsize) return 2; // SE
-  if (diff == 1) return 4; // SW
-  if (diff == -mapsize) return 8; // NW
-  throw("Shouldn't come here in _dir");
-}
-
-function ShipPathfinder::GetDirectionToGoal(self, cur_tile, goal_tile)
-{
-  local cur_x = AIMap.GetTileX(cur_tile);
-  local cur_y = AIMap.GetTileY(cur_tile);
-  local dx = AIMap.GetTileX(goal_tile) - cur_x;
-  local dy = AIMap.GetTileY(goal_tile) - cur_y;
-
-  local abs_dx = abs(dx);
-  local abs_dy = abs(dy);
-
-  // If we sumbled upon an actual goal_tile skip the distance logic
-  if (abs_dx + abs_dy == 0) {
-    return null;
-  }
-
-  local next_x = cur_x;
-  local next_y = cur_y;
-
-  // When the x movement is bigger then y travers on the x axis else on y
-  if (abs_dx >= abs_dy) {
-    next_x = cur_x + ((dx >= -1 && dx <= 1 ) ? dx : dx / abs_dx);
-  } else {
-    next_y = cur_y + ((dy >= -1 && dy <= 1 ) ? dy : dy / abs_dy);
-  }
-
-  // Get the direction for the goal
-  local next_tile = AIMap.GetTileIndex(next_x, next_y);
-  return this._dir(cur_tile, next_tile);
+  if (!is_river && AITile.IsWaterTile(to)) return 0xFF;
+  if (from - to == 1) return 1;
+  if (from - to == -1) return 2;
+  if (from - to == AIMap.GetMapSizeX()) return 4;
+  if (from - to == -AIMap.GetMapSizeX()) return 8;
 }
