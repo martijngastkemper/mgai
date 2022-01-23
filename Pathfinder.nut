@@ -10,7 +10,7 @@ class ShipPathfinder {
     this._cost_tile = 100;
 
     // Will be added to _cost_tile
-    this._cost_turn = 150;
+    this._cost_turn = 10;
 
   }
 
@@ -47,7 +47,8 @@ function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
     return path.GetCost();
   }
 
-  if (path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
+  // Turning on sea is expansive. This makes rivers and coasts cheaper 🤞
+  if (AITile.IsSeaTile(prev_tile) && AITile.IsSeaTile(new_tile) && path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
     cost += self._cost_turn;
   }
 
