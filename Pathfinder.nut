@@ -7,11 +7,7 @@ class ShipPathfinder {
     this._pathfinder = AyStar(this, this._Cost, this._Estimate, this._Neighbours, this._CheckDirection);
     this._max_cost = 10000000;
 
-    this._cost_tile = 100;
-
-    // Will be added to _cost_tile
-    this._cost_turn = 10;
-
+    this._cost_tile = 10;
   }
 
   function InitializePath(sources, goals, ignored_tiles = []) {
@@ -42,16 +38,6 @@ function ShipPathfinder::_Cost(self, path, new_tile, new_direction) {
 
   local cost = self._cost_tile;
 
-  local distance = AIMap.DistanceManhattan(new_tile, prev_tile);
-  if (distance > 1) {
-    return path.GetCost();
-  }
-
-  // Turning on sea is expansive. This makes rivers and coasts cheaper 🤞
-  if (AITile.IsSeaTile(prev_tile) && AITile.IsSeaTile(new_tile) && path.GetParent() != null && (prev_tile - path.GetParent().GetTile()) != (new_tile - prev_tile)) {
-    cost += self._cost_turn;
-  }
-
   return path.GetCost() + cost;
 }
 
@@ -60,7 +46,7 @@ function ShipPathfinder::_Estimate(self, cur_tile, cur_direction, goal_tiles) {
   /* As estimate we multiply the lowest possible cost for a single tile with
 	 * with the minimum number of tiles we need to traverse. */
   foreach (goal_tile in goal_tiles) {
-    min_cost = min(AIMap.DistanceManhattan(cur_tile, goal_tile) * self._cost_tile, min_cost);
+    min_cost = min(AIMap.DistanceSquare(cur_tile, goal_tile) * self._cost_tile, min_cost);
   }
   return min_cost;
 }
@@ -70,16 +56,6 @@ function ShipPathfinder::_Neighbours(self, path, cur_tile) {
 
   local tiles = [];
   AISign.BuildSign(cur_tile, "y");
-
-  if (self.IsRiverPart(cur_tile)) {
-    local riverEnd = self.GetOtherRiverEnd(cur_tile, path.GetParent().GetTile());
-
-    if (riverEnd) {
-      AILog.Info("Start of river: " + Utilities.PrintTile(cur_tile));
-      AILog.Info("End of river: " + Utilities.PrintTile(riverEnd[0]));
-      tiles.push(riverEnd)
-    }
-  }
 
   foreach (offset in Utilities.offsets) {
     local next_tile = cur_tile + offset;
