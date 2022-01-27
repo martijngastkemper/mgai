@@ -65,6 +65,7 @@ function MGAI::Start()
       this.connectedOilRigs.append(oilRig);
       continue;
     }
+    AILog.Info(AIError.GetLastErrorString());
 
     if (AIError.GetLastError() != AIError.ERR_NOT_ENOUGH_CASH) {
       this.failedOilRigs.append(oilRig);
@@ -92,12 +93,14 @@ function MGAI::BuildRoute(oilRig) {
     AILog.Info("Check nearby refinery: " + AIIndustry.GetName(refinery));
 
     local dockTiles = this.GetDockableTiles(refinery);
-    if (dockTiles.IsEmpty()) {
-      AILog.Info("No place for a dock.");
-      continue;
-    }
+    if (dockTiles.IsEmpty()) continue;
 
     goals.AddList(dockTiles);
+  }
+
+  if (goals.IsEmpty()) {
+    AILog.Info("No place for a dock found near any refineries");
+    return false;
   }
 
   path = this.GetPathBetweenRefineryAndOilRig(oilRig, goals);
@@ -328,6 +331,12 @@ function MGAI::PollForAOilRig()
   oilrigs.KeepValue(0);
 
   oilrigs.Valuate(AIIndustry.HasDock);
+  oilrigs.KeepValue(1);
+
+  local isStation = function (industry) {
+    return AITile.IsStationTile(AIIndustry.GetLocation(industry));
+  }
+  oilrigs.Valuate(isStation);
   oilrigs.KeepValue(1);
 
   // Put the oilrig with the highest production at the beginning so we start with connecting the most valuable oilrig.
