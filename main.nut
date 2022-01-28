@@ -86,6 +86,7 @@ function MGAI::BuildRoute(oilRig) {
 
   if (nearbyRefineries.IsEmpty()) {
     AILog.Info("No nearby refineries found");
+    this.failedOilRigs.append(oilRig);
     return false;
   }
 
