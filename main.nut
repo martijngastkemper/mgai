@@ -72,6 +72,10 @@ function MGAI::Start()
     } else {
       this.Sleep(50);
     }
+
+    // @todo Pay off loan
+    // @todo Remove non profitable routes
+    // @todo Renew / upgrade ships
   }
 }
 
@@ -132,6 +136,7 @@ function MGAI::BuildRoute(oilRig) {
 
   if (!this.BuildPath(path)) return false;
 
+  // @todo build depot near refinery
   local depotTile = this.BuildDepot(oilRig);
   if(depotTile == false) return false;
 
@@ -194,6 +199,7 @@ function MGAI::PollEvents()
           local dockableTiles = MGAI.GetDockableTiles(i);
           if (!dockableTiles.IsEmpty()) {
             AILog.Info("We have a new refinery (" + AIIndustry.GetName(i) + ")");
+            // @todo Only remove oil rigs in range from failed list
             this.failedOilRigs = [];
           }
         }
@@ -377,6 +383,7 @@ function MGAI::FindNearbyRefineries(oilRig)
   }
   // Not to far, but also not to close
   refineries.Valuate(GetDistance, oilRig);
+  // @todo Make both values a setting, to fix the test scenario
   refineries.KeepBetweenValue(50, 200);
 
   refineries.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
